@@ -1809,121 +1809,6 @@ export async function getPendingApprovals() {
 }
 
 /**
- * Respond to a pending approval (approve or reject)
- */
-export async function respondToApproval(action) {
-    const target = await findEditorTarget();
-    if (!target) return { success: false, error: 'No editor target' };
-
-    return new Promise(async (resolve) => {
-        const { default: WebSocket } = await import('ws');
-        const ws = new WebSocket(target.webSocketDebuggerUrl);
-
-        const contexts = [];
-        let messageId = 1;
-        const pending = new Map();
-
-        const call = (method, params = {}) => new Promise((res, rej) => {
-            const id = messageId++;
-            pending.set(id, { resolve: res, reject: rej });
-            ws.send(JSON.stringify({ id, method, params }));
-            setTimeout(() => {
-                if (pending.has(id)) {
-                    pending.delete(id);
-                    rej(new Error('Timeout'));
-                }
-            }, 5000);
-        });
-
-        ws.on('message', (msg) => {
-            try {
-                const data = JSON.parse(msg.toString());
-                if (data.id && pending.has(data.id)) {
-                    const { resolve, reject } = pending.get(data.id);
-                    pending.delete(data.id);
-                    if (data.error) reject(new Error(data.error.message));
-                    else resolve(data.result);
-                } else if (data.method === 'Runtime.executionContextCreated') {
-                    contexts.push(data.params.context);
-                }
-            } catch (e) { }
-        });
-
-        ws.on('open', async () => {
-            try {
-                await call('Runtime.enable', {});
-                await new Promise(r => setTimeout(r, 500));
-
-                const isApprove = action === 'approve';
-                const keywords = isApprove
-                    ? ['run', 'accept', 'approve', 'yes', 'confirm', 'allow']
-                    : ['cancel', 'reject', 'no', 'deny', 'skip'];
-
-                const SCRIPT = `
-                    (async function() {
-                        const keywords = ${JSON.stringify(keywords)};
-                        const isApprove = ${isApprove};
-                        
-                        // Find buttons with matching text
-                        const buttons = document.querySelectorAll('button, [role="button"], [class*="cursor-pointer"]');
-                        let targetBtn = null;
-                        
-                        for (const btn of buttons) {
-                            const text = (btn.innerText || btn.textContent || '').toLowerCase().trim();
-                            if (text.length < 20 && keywords.some(k => text === k || text.includes(k))) {
-                                targetBtn = btn;
-                                break;
-                            }
-                        }
-                        
-                        if (targetBtn) {
-                            targetBtn.scrollIntoView({ block: 'center' });
-                            await new Promise(r => setTimeout(r, 100));
-                            targetBtn.click();
-                            return { 
-                                found: true, 
-                                success: true, 
-                                action: isApprove ? 'approved' : 'rejected',
-                                buttonText: targetBtn.innerText 
-                            };
-                        }
-                        
-                        return { found: true, success: false, error: 'Button not found' };
-                    })()
-                `;
-
-                for (const ctx of contexts) {
-                    try {
-                        const result = await call('Runtime.evaluate', {
-                            expression: SCRIPT,
-                            returnByValue: true,
-                            awaitPromise: true,
-                            contextId: ctx.id
-                        });
-
-                        if (result.result?.value?.found && result.result.value.success) {
-                            ws.close();
-                            resolve(result.result.value);
-                            return;
-                        }
-                    } catch (e) { }
-                }
-
-                ws.close();
-                resolve({ success: false, error: 'Could not find approval button' });
-            } catch (e) {
-                ws.close();
-                resolve({ success: false, error: e.message });
-            }
-        });
-
-        ws.on('error', () => {
-            resolve({ success: false, error: 'WebSocket error' });
-        });
-    });
-}
-
-/**
  * Click an element in the Antigravity chat by XPath
  * Searches all execution contexts for #cascade, then clicks the element
  */
@@ -2269,7 +2154,7 @@ export async function respondToApproval(decision) {
                 });
                 ws.on('error', () => { clearTimeout(timer); resolve(null); });
             });
-            if (res && res.success) return { success: true, decision };
+            if (res && res.success) return { success: true, decision, action: decision };
         } catch (e) { }
     }
     return { success: false, error: 'Approval button not found' };
@@ -2284,15 +2169,6 @@ export async function stopAgent() {
     candidates.sort((a, b) => (b.url?.includes('extensionView=true') ? 1 : 0) - (a.url?.includes('extensionView=true') ? 1 : 0));
 
     const SCRIPT = buildStopAgentScript();
-        for (const sel of selectors) {
-            const btn = document.querySelector(sel);
-            if (btn && btn.offsetParent !== null) {
-                btn.click();
-                return { found: true, stopped: true, selector: sel };
-            }
-        }
-        return { found: false };
-    })()`;
 
     for (const target of candidates) {
         try {
@@ -2318,7 +2194,7 @@ export async function stopAgent() {
                 });
                 ws.on('error', () => { clearTimeout(timer); resolve(null); });
             });
-            if (res?.found && res.stopped) {
+            if (res && (res.stopped || res.success)) {
                 return { success: true, stopped: true, selector: res.selector };
             }
         } catch (e) { }

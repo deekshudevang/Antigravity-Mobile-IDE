@@ -80,8 +80,16 @@ export function registerCommand(promptText, idempotencyKey, deviceId = 'unknown'
 /**
  * Transition command state with observed evidence.
  */
-export function transitionCommand(key, newState, evidence = '') {
-    const command = activeCommands.get(key);
+export function transitionCommand(idOrKey, newState, evidence = '') {
+    let command = activeCommands.get(idOrKey);
+    if (!command) {
+        for (const cmd of activeCommands.values()) {
+            if (cmd.id === idOrKey || cmd.key === idOrKey) {
+                command = cmd;
+                break;
+            }
+        }
+    }
     if (!command) return null;
 
     // Terminal states cannot be transitioned further
@@ -95,7 +103,7 @@ export function transitionCommand(key, newState, evidence = '') {
     command.history.push({
         state: newState,
         timestamp: now,
-        evidence: String(evidence)
+        evidence: typeof evidence === 'object' ? JSON.stringify(evidence) : String(evidence)
     });
 
     emitEvent('command_lifecycle', {
@@ -109,10 +117,23 @@ export function transitionCommand(key, newState, evidence = '') {
     return command;
 }
 
-export function getCommand(key) {
-    return activeCommands.get(key) || null;
+export function getCommand(idOrKey) {
+    if (activeCommands.has(idOrKey)) return activeCommands.get(idOrKey);
+    for (const cmd of activeCommands.values()) {
+        if (cmd.id === idOrKey || cmd.key === idOrKey) return cmd;
+    }
+    return null;
 }
 
 export function listRecentCommands(limit = 50) {
     return Array.from(activeCommands.values()).slice(-limit);
 }
+
+export const commandLifecycle = {
+    STATES: COMMAND_STATE,
+    registerCommand,
+    transition: transitionCommand,
+    transitionCommand,
+    getCommand,
+    listRecentCommands
+};

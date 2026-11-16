@@ -13,6 +13,17 @@ echo.
 REM 1. Check if Tailscale CLI is available
 where tailscale >nul 2>&1
 if %ERRORLEVEL% NEQ 0 (
+    if exist "C:\Program Files\Tailscale\tailscale.exe" (
+        set "PATH=%PATH%;C:\Program Files\Tailscale"
+    ) else if exist "C:\Program Files (x86)\Tailscale\tailscale.exe" (
+        set "PATH=%PATH%;C:\Program Files (x86)\Tailscale"
+    ) else if exist "%LOCALAPPDATA%\Tailscale\tailscale.exe" (
+        set "PATH=%PATH%;%LOCALAPPDATA%\Tailscale"
+    )
+)
+
+where tailscale >nul 2>&1
+if %ERRORLEVEL% NEQ 0 (
     echo [ERROR] Tailscale CLI is not installed or not in PATH.
     echo Please install Tailscale from https://tailscale.com/download/windows
     echo and ensure 'tailscale' is accessible in your command prompt.

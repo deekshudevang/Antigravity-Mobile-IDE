@@ -59,7 +59,11 @@ export function getEventsSince(lastEventId = 0, limit = 100) {
 /**
  * Register an authenticated WebSocket client onto the event bus.
  */
-export function registerClient(ws, deviceId, lastEventId = 0) {
+export function registerClient(ws, deviceId = 'unknown', lastEventId = 0) {
+    if (typeof deviceId === 'number') {
+        lastEventId = deviceId;
+        deviceId = 'unknown';
+    }
     const client = {
         ws,
         deviceId,
@@ -83,7 +87,6 @@ export function registerClient(ws, deviceId, lastEventId = 0) {
     ws.on('pong', () => {
         client.isAlive = true;
     });
-
     ws.on('close', () => {
         activeClients.delete(client);
     });
@@ -163,3 +166,16 @@ const heartbeatInterval = setInterval(() => {
     }
 }, 30000);
 if (heartbeatInterval.unref) heartbeatInterval.unref();
+
+export const eventBus = {
+    publish(type, payload, source, projectId) {
+        return emitEvent(type, payload, source, projectId);
+    },
+    emit: emitEvent,
+    emitEvent,
+    registerClient,
+    unregisterClient,
+    getEventsSince,
+    broadcastFrame,
+    getActiveClientCount
+};

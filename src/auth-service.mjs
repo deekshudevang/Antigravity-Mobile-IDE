@@ -178,6 +178,15 @@ function checkPairingRateLimit(identifier) {
     return { allowed: true };
 }
 
+export function pairRateLimiter(req, res, next) {
+    const ip = req.ip || req.socket?.remoteAddress || '127.0.0.1';
+    const rateCheck = checkPairingRateLimit(ip);
+    if (!rateCheck.allowed) {
+        return res.status(429).json({ success: false, error: 'rate_limited', retryAfter: rateCheck.remainingSeconds });
+    }
+    next();
+}
+
 function recordPairingFailure(identifier) {
     const now = Date.now();
     const entry = state.pairingAttempts[identifier];
@@ -487,6 +496,35 @@ export function validateOriginAndHost(allowedHosts = ['localhost', '127.0.0.1'])
         }
 
         next();
+    };
+}
+
+export function createWebSocketUpgradeHandler(wss) {
+    return (req, socket, head) => {
+        try {
+            const url = new URL(req.url, 'http://127.0.0.1');
+            const token = url.searchParams.get('token') || req.headers['authorization'];
+            const session = validateAccessToken(token);
+
+            if (!session) {
+                logSecurityEvent('UNAUTHENTICATED_WS_UPGRADE_REJECTED', { ip: req.socket?.remoteAddress, path: req.url });
+                socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
+                socket.destroy();
+                return;
+            }
+
+            wss.handleUpgrade(req, socket, head, (ws) => {
+                if (session.deviceId) {
+                    registerActiveSocket(session.deviceId, ws);
+                    ws.on('close', () => {
+                        unregisterActiveSocket(session.deviceId, ws);
+                    });
+                }
+                wss.emit('connection', ws, req, session);
+            });
+        } catch (e) {
+            try { socket.destroy(); } catch (err) { }
+        }
     };
 }
 
