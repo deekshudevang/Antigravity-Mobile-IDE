@@ -14,6 +14,11 @@ echo   Remote access via Tailscale Serve reverse proxy
 echo   (Keep this window open. Close it to stop the bridge.)
 echo.
 
+REM Automatically stop any stale bridge process lingering on port 5000
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :5000 ^| findstr LISTENING 2^>nul') do (
+    taskkill /PID %%a /F >nul 2>&1
+)
+
 node src\http-server.mjs
 
 echo.

@@ -37,6 +37,18 @@ export function isSensitiveFile(filePath) {
 }
 
 /**
+ * Resolve canonical workspace root path
+ */
+export function getCanonicalWorkspaceRoot(workspaceRoot) {
+    if (!workspaceRoot) return null;
+    try {
+        return realpathSync(resolve(workspaceRoot));
+    } catch {
+        return resolve(workspaceRoot);
+    }
+}
+
+/**
  * Canonicalize and validate that requestedPath resides strictly within workspaceRoot.
  * Resolves directory junctions and symlinks.
  * @returns {{ valid: boolean, canonicalPath?: string, error?: string }}

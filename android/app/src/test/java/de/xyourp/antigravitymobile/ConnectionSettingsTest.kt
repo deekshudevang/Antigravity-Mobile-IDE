@@ -52,5 +52,6 @@ class ConnectionSettingsTest {
         )
         assertTrue(modern.isPaired)
         assertEquals("agt_modern_token_456", modern.effectiveToken)
+        assertEquals("ws://localhost:5000?token=agt_modern_token_456", modern.wsUrl)
     }
 }

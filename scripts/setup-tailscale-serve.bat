@@ -45,7 +45,8 @@ if %ERRORLEVEL% NEQ 0 (
 echo.
 echo [*] Configuring Tailscale Serve reverse proxy...
 echo     Forwarding HTTPS traffic to http://127.0.0.1:5000
-tailscale serve --bg 5000 127.0.0.1:5000
+tailscale serve --bg 5000
+tailscale serve --https=5000 --bg 127.0.0.1:5000
 
 echo.
 echo [*] Current Tailscale Serve Status:

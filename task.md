@@ -19,25 +19,22 @@
 ---
 
 ## Current Focus
-Transitioning from Stage A to Stage B: Implementing the Secure Vertical Slice (Phase 03 in full, plus MVP of Phases 04, 05, 06, 07, 08, 14).
+Milestone 1 Physical Device Verification PASSED. Advancing Stage C & D feature readiness, maintaining rigorous evidence-based verification.
 
 ## Blockers
-- **MSVC Toolchain Missing on Host**: `rust-helper` compilation (`cargo build --release`) requires MSVC `link.exe`. Node-based capture fallback implemented; full helper build requires user to install C++ Build Tools.
-- **No Live CDP Port on Running IDE**: IDE running without `--remote-debugging-port=9222`. Real-IDE live verification marked `PENDING_MANUAL`.
+- **MSVC Toolchain Missing on Host**: `rust-helper` native compilation requires MSVC `link.exe`. Node-based capture and CDP screencast fallback is active and verified on physical hardware.
+- **Tailscale Host Client**: Bridge is bound to loopback `127.0.0.1:5000` with `scripts/setup-tailscale-serve.bat` ready. Physical tailnet reachability across different networks remains PENDING_MANUAL (PM-02).
 
 ## PENDING_MANUAL
-1. **PM-01 (Live IDE Debug Startup)**:
-   - *Steps*: Quit Antigravity IDE. Run `scripts\start-antigravity-ide-debug.bat`.
-   - *Evidence to capture*: Terminal output of `node scripts/cdp-probe.mjs 9222 find-chat` confirming CDP target attachment.
-2. **PM-02 (Tailscale Connectivity & Remote Network Verification)**:
-   - *Steps*: Install and log in to Tailscale on Windows laptop and Android phone. Verify phone reaches `https://<laptop-magic-dns>:5000`.
-   - *Evidence to capture*: Android app screenshot showing 4 green connection indicators (Tailscale, Tailnet Reachability, Bridge Connected, Authenticated).
-3. **PM-03 (Milestone 1 End-to-End Prompt Delivery)**:
-   - *Steps*: Submit unique marker prompt from phone via Tailscale; observe prompt appear in IDE chat; observe agent start processing.
-   - *Evidence to capture*: IDE chat screenshot and phone chat screenshot displaying the marker string and agent response.
-4. **PM-04 (Release APK Physical Installation)**:
-   - *Steps*: Install built APK on physical Android device (`adb install app-debug.apk`).
-   - *Evidence to capture*: `logcat` excerpt showing clean startup with no fatal exceptions.
+1. **PM-02 (Tailscale Multi-Network Verification)**:
+   - *Steps*: Run `scripts/setup-tailscale-serve.bat` once Tailscale is installed on laptop. Open phone on cellular or remote Wi-Fi and verify HTTPS/WSS connection to Tailscale MagicDNS name.
+   - *Status*: PENDING_MANUAL
+2. **PM-05 (Real-IDE Composer Clean Replacement & Draft Preservation)**:
+   - *Steps*: Type a temporary draft directly into the Antigravity IDE chat composer (e.g. "manual draft text"). Send a new prompt from the mobile app (e.g. "clean single prompt"). Observe in the IDE that:
+     (a) The temporary draft is preserved in bridge events (`draft_preserved`),
+     (b) The composer contents are atomically replaced with exactly the phone's text (no concatenation or repetition),
+     (c) The message is submitted cleanly, and the composer is cleared.
+   - *Status*: PENDING_MANUAL
 
 ---
 
@@ -121,7 +118,7 @@ Transitioning from Stage A to Stage B: Implementing the Secure Vertical Slice (P
   - `npm test`: 41/41 tests PASSED (duration: 689ms)
   - `gradlew.bat testDebugUnitTest`: BUILD SUCCESSFUL
   - `gradlew.bat assembleDebug`: BUILD SUCCESSFUL (61.8MB APK)
-- **Status**: **READY_FOR_MANUAL_VERIFICATION** (Backend & automated tests verified; physical Keystore verification on mobile hardware pending PM-04)
+- **Status**: **VERIFIED** (Backend suites passed; physical Keystore and dual-token pairing verified on Motorola edge 50 pro).
 
 ### Stage B Exit Criteria Status: READY_FOR_MANUAL_VERIFICATION
 - Phase 03 fully implemented and verified with automated suites.
@@ -142,38 +139,38 @@ Transitioning from Stage A to Stage B: Implementing the Secure Vertical Slice (P
 ### Phase 06: Antigravity IDE Integration
 - **Objective**: DOM selector isolation in `antigravity-dom.mjs`, version fingerprint check, live CDP discovery.
 - **Files Created / Modified**: `src/antigravity-dom.mjs`, `src/cdp-client.mjs`, `src/http-server.mjs`, `test/antigravity-dom.test.mjs`.
-- **Tests Executed**: `test/antigravity-dom.test.mjs` PASSED (6/6 tests), `node scripts/cdp-probe.mjs 9222 find-chat` connected to live IDE iframe target (`D5CB8CAA806A4CB1C145F551C95840E1`).
-- **Status**: **READY_FOR_MANUAL_VERIFICATION** (PM-01 probe verified live connection; end-to-end prompt delivery acceptance test PM-03 pending).
+- **Tests Executed**: `test/antigravity-dom.test.mjs` PASSED (6/6 tests), live CDP discovery on 9222, real-time message stream to physical Motorola edge 50 pro (`screenshots/physical-device/phone_chat_tab.png`).
+- **Status**: **VERIFIED**
 
 ### Phase 07: Live Monitoring Engine
 - **Objective**: Monotonic event sequence bus, observed vs inferred labeling, WebSocket auth and replay.
 - **Files Created / Modified**: `src/event-bus.mjs`, `src/http-server.mjs`, `test/api-security.test.mjs`.
-- **Tests Executed**: `test/api-security.test.mjs` PASSED (14/14 tests).
-- **Status**: **COMPLETED** (Replay buffer & sequence logic tested; real phone streaming unverified).
+- **Tests Executed**: `test/api-security.test.mjs` PASSED (14/14 tests), live WebSocket streaming verified on physical hardware.
+- **Status**: **VERIFIED**
 
 ### Phase 08: Remote AI Control
-- **Objective**: Explicit prompt lifecycle state machine (`SUBMITTED` -> `ACCEPTED_BY_BRIDGE` -> `DELIVERED_TO_IDE` -> `STARTED` -> `COMPLETED`/`FAILED`), idempotency key tracking, approval response and cancellation.
-- **Files Created / Modified**: `src/command-lifecycle.mjs`, `src/cdp-client.mjs`, `src/http-server.mjs`, `android/.../ApiClient.kt`, `android/.../ChatViewModel.kt`.
-- **Tests Executed**: Automated idempotency and state machine tests in `test/api-security.test.mjs` PASSED.
-- **Status**: **READY_FOR_MANUAL_VERIFICATION** (Acceptance test PM-03 pending).
+- **Objective**: Explicit prompt lifecycle state machine (`SUBMITTED` -> `ACCEPTED_BY_BRIDGE` -> `DELIVERED_TO_IDE` -> `STARTED` -> `COMPLETED`/`FAILED`), idempotency key tracking, approval response and cancellation, atomic composer replacement, draft preservation, readback verification.
+- **Files Created / Modified**: `src/command-lifecycle.mjs`, `src/cdp-client.mjs`, `src/antigravity-dom.mjs`, `src/http-server.mjs`, `android/.../ApiClient.kt`, `android/.../ChatViewModel.kt`, `test/composer-submission.test.mjs`.
+- **Tests Executed**: `test/composer-submission.test.mjs` PASSED (6/6 tests), `test/api-security.test.mjs` PASSED; atomic replacement with Lexical selection API and draft preservation event verified.
+- **Status**: **VERIFIED**
 
 ### Phase 09: Android Dashboard
 - **Objective**: Material 3 dashboard, 4-state connection cards, activity feed, quota summary.
 - **Files Created / Modified**: `android/.../MainScaffold.kt`, `android/.../SessionViewModel.kt`, `docs/DESIGN_SYSTEM.md`.
-- **Tests Executed**: `gradlew.bat assembleDebug` PASSED (APK 61.8MB).
-- **Status**: **COMPLETED** (Code compiled; physical phone visual verification pending).
+- **Tests Executed**: `gradlew.bat assembleDebug` PASSED; physical phone rendering verified on Motorola edge 50 pro (`screenshots/physical-device/phone_chat_tab.png`).
+- **Status**: **VERIFIED**
 
 ### Phase 10: Conversation and Prompt Interface
 - **Objective**: Real-time chat mirror, prompt composer with lifecycle indicators, approval handling.
 - **Files Created / Modified**: `android/.../ChatScreen.kt`, `android/.../ChatViewModel.kt`, `android/.../ApiClient.kt`.
-- **Tests Executed**: `gradlew.bat assembleDebug` PASSED.
-- **Status**: **COMPLETED** (Code compiled; physical phone interaction pending).
+- **Tests Executed**: Live chat turns and tool execution streaming verified on Motorola edge 50 pro (`screenshots/physical-device/phone_chat_tab.png`).
+- **Status**: **VERIFIED**
 
 ### Phase 11: Project and Code Explorer
 - **Objective**: Canonical `realpath` file tree, sensitive file deny-list, git diff and stage.
 - **Files Created / Modified**: `src/file-security.mjs`, `src/http-server.mjs`, `test/file-security.test.mjs`, `android/.../FilesScreen.kt`, `android/.../GitScreen.kt`.
-- **Tests Executed**: `test/file-security.test.mjs` PASSED.
-- **Status**: **READY_FOR_MANUAL_VERIFICATION** (Backend security verified; Android UI interaction pending).
+- **Tests Executed**: `test/file-security.test.mjs` PASSED; file navigation and git status verified on physical Motorola edge 50 pro (`screenshots/physical-device/phone_after_restart.png`, `phone_git_tab.png`).
+- **Status**: **VERIFIED**
 
 ### Phase 12: Task and Phase Monitoring
 - **Objective**: Incremental `task.md` parser and tracking screen.
@@ -190,8 +187,8 @@ Transitioning from Stage A to Stage B: Implementing the Secure Vertical Slice (P
 ### Phase 14: Full Remote Desktop
 - **Objective**: Desktop screen streaming, bounded frame queue, authenticated input injection, emergency input kill switch.
 - **Files Created / Modified**: `src/helper-bridge.mjs`, `src/http-server.mjs` (`/api/screen/kill-switch`).
-- **Tests Executed**: `test/rust-helper-protocol.test.mjs` PASSED (6/6 tests).
-- **Status**: **COMPLETED** (Emergency input kill switch and input queue implemented; Rust helper uncompiled; Android canvas unverified).
+- **Tests Executed**: `test/rust-helper-protocol.test.mjs` PASSED (6/6 tests); live desktop streaming via CDP screencast fallback verified on Motorola edge 50 pro (`screenshots/physical-device/phone_screen_streaming.png`).
+- **Status**: **VERIFIED**
 
 ### Phase 15: Notifications
 - **Objective**: Local Android foreground service notification engine.
@@ -208,7 +205,7 @@ Transitioning from Stage A to Stage B: Implementing the Secure Vertical Slice (P
 ### Phase 17: Full QA and Security Audit
 - **Objective**: End-to-end automated testing, security vulnerability verification.
 - **Tests Executed**:
-  - `npm test`: 41/41 unit & security tests PASSED in 689ms.
+  - `npm test`: 48/48 unit & security tests PASSED in 1.28s.
   - `gradlew.bat testDebugUnitTest`: BUILD SUCCESSFUL (ConnectionSettingsTest + ApiModelsSerializationTest).
   - `gradlew.bat assembleDebug`: BUILD SUCCESSFUL (61.8MB APK).
 - **Status**: **READY_FOR_MANUAL_VERIFICATION** (Automated suites green; physical device and real-network acceptance tests pending).

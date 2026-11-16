@@ -21,7 +21,9 @@
     "start": "node src/http-server.mjs",
     "server": "node src/http-server.mjs",
     "launch": "node src/launcher.mjs",
-    "test": "node --test test/*.test.mjs"
+    "test": "node --test test/*.test.mjs",
+    "contrast": "node scripts/check-contrast.mjs",
+    "tokens": "node scripts/generate-tokens.mjs"
   },
   "dependencies": {
     "express": "^4.18.2",

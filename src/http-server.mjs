@@ -1014,9 +1014,15 @@ app.post('/api/commands/execute', AuthService.requireCapability(AuthService.CAPA
     commandLifecycle.transition(registered.command.id, commandLifecycle.STATES.ACCEPTED_BY_BRIDGE);
 
     try {
-        commandLifecycle.transition(registered.command.id, commandLifecycle.STATES.DELIVERED_TO_IDE);
-        const result = await CDP.injectAndSubmit(prompt);
-        commandLifecycle.transition(registered.command.id, commandLifecycle.STATES.STARTED, { result });
+        const result = await CDP.injectAndSubmit(prompt, {
+            idempotencyKey,
+            onDraftPreserved: (draft) => {
+                emitEvent('draft_preserved', `Preserved local draft (${draft.length} chars) before prompt insertion`);
+                eventBus.publish('composer_draft_preserved', { draft: draft.slice(0, 100), length: draft.length }, 'observed');
+            }
+        });
+        commandLifecycle.transition(registered.command.id, commandLifecycle.STATES.DELIVERED_TO_IDE, { editorType: result.editorType });
+        commandLifecycle.transition(registered.command.id, commandLifecycle.STATES.STARTED, { result, postVerification: result.postVerification });
         emitEvent('command', `Executed: ${prompt.slice(0, 50)}`);
         trackMetric('commands');
         eventBus.publish('command_started', { commandId: registered.command.id, prompt: prompt.slice(0, 100) }, 'observed');
@@ -2144,7 +2150,7 @@ app.post('/api/pair', AuthService.pairRateLimiter, (req, res) => {
         return res.status(401).json(result);
     }
     emitEvent('device', `Paired new device: ${result.deviceId} (${name || 'phone'})`);
-    res.json(result);
+    res.json({ ...result, token: result.accessToken });
 });
 
 // Refresh access token using rotating refresh token
@@ -2251,6 +2257,11 @@ app.post('/api/agent/stop', AuthService.requireCapability(AuthService.CAPABILITI
 // Task & Phase Monitoring (Phase 12)
 app.get('/api/tasks', AuthService.requireCapability(AuthService.CAPABILITIES.TASKS_READ), (req, res) => {
     res.json(getTaskProgress(PROJECT_ROOT));
+});
+
+// Activity Timeline & Event Feed (Phase 07 & UI/UX Section 6.3)
+app.get('/api/activity', AuthService.requireCapability(AuthService.CAPABILITIES.CONVERSATION_READ), (req, res) => {
+    res.json({ events: activityEvents.slice().reverse() });
 });
 
 // Tap-to-control. Coordinates are normalised (0..1) over the captured desktop;
@@ -2451,7 +2462,7 @@ app.post('/api/git/checkout', async (req, res) => {
 app.get('/api/files', (req, res) => {
     try {
         const requestedPath = req.query.path || workspacePath;
-        const validated = FileSecurity.validateWorkspacePath(requestedPath, workspacePath);
+        const validated = FileSecurity.validateWorkspacePath(workspacePath, requestedPath);
         if (!validated.valid) {
             const status = validated.error === 'path_not_found' ? 404 : 403;
             return res.status(status).json({ error: validated.error, message: validated.message });
@@ -2528,7 +2539,7 @@ app.get('/api/files/content', (req, res) => {
             return res.status(400).json({ error: 'Path required' });
         }
 
-        const validated = FileSecurity.validateWorkspacePath(filePath, workspacePath);
+        const validated = FileSecurity.validateWorkspacePath(workspacePath, filePath);
         if (!validated.valid) {
             const status = validated.error === 'path_not_found' ? 404 : 403;
             return res.status(status).json({ error: validated.error, message: validated.message });
@@ -2576,7 +2587,7 @@ app.post('/api/files/save', (req, res) => {
             return res.status(400).json({ error: 'Content required' });
         }
 
-        const validated = FileSecurity.validateWorkspacePath(filePath, workspacePath);
+        const validated = FileSecurity.validateWorkspacePath(workspacePath, filePath);
         if (!validated.valid) {
             const status = validated.error === 'path_not_found' ? 404 : 403;
             return res.status(status).json({ error: validated.error, message: validated.message });
@@ -2605,7 +2616,7 @@ app.get('/api/files/raw', (req, res) => {
             return res.status(400).json({ error: 'Path required' });
         }
 
-        const validated = FileSecurity.validateWorkspacePath(filePath, workspacePath);
+        const validated = FileSecurity.validateWorkspacePath(workspacePath, filePath);
         if (!validated.valid) {
             const status = validated.error === 'path_not_found' ? 404 : 403;
             return res.status(status).json({ error: validated.error, message: validated.message });
@@ -2650,7 +2661,7 @@ app.get('/api/files/download', (req, res) => {
         const filePath = req.query.path;
         if (!filePath) return res.status(400).json({ error: 'Path required' });
 
-        const validated = FileSecurity.validateWorkspacePath(filePath, workspacePath);
+        const validated = FileSecurity.validateWorkspacePath(workspacePath, filePath);
         if (!validated.valid) {
             const status = validated.error === 'path_not_found' ? 404 : 403;
             return res.status(status).json({ error: validated.error, message: validated.message });
@@ -2905,9 +2916,15 @@ wss.on('connection', (ws, req) => {
 
                 commandLifecycle.transition(registered.command.id, commandLifecycle.STATES.ACCEPTED_BY_BRIDGE);
                 try {
-                    commandLifecycle.transition(registered.command.id, commandLifecycle.STATES.DELIVERED_TO_IDE);
-                    const result = await CDP.injectAndSubmit(prompt);
-                    commandLifecycle.transition(registered.command.id, commandLifecycle.STATES.STARTED, { result });
+                    const result = await CDP.injectAndSubmit(prompt, {
+                        idempotencyKey: msg.idempotencyKey,
+                        onDraftPreserved: (draft) => {
+                            emitEvent('draft_preserved', `Preserved local draft (${draft.length} chars)`);
+                            eventBus.publish('composer_draft_preserved', { draft: draft.slice(0, 100), length: draft.length }, 'observed');
+                        }
+                    });
+                    commandLifecycle.transition(registered.command.id, commandLifecycle.STATES.DELIVERED_TO_IDE, { editorType: result.editorType });
+                    commandLifecycle.transition(registered.command.id, commandLifecycle.STATES.STARTED, { result, postVerification: result.postVerification });
                     eventBus.publish('command_started', { commandId: registered.command.id, prompt: prompt.slice(0, 100) }, 'observed');
                     ws.send(JSON.stringify({ event: 'inject_result', data: result, command: registered.command }));
                 } catch (err) {
@@ -2920,8 +2937,13 @@ wss.on('connection', (ws, req) => {
                 const base64 = await CDP.captureScreenshot();
                 ws.send(JSON.stringify({ event: 'screenshot', data: { image: base64 } }));
             } else if (msg.action === 'watch_screen') {
-                const latest = HelperBridge.getLatestFrame();
-                if (latest && ws.readyState === WebSocket.OPEN) ws.send(latest);
+                if (HelperBridge.isConnected()) {
+                    const latest = HelperBridge.getLatestFrame();
+                    if (latest && ws.readyState === WebSocket.OPEN) ws.send(latest);
+                } else {
+                    // CDP fallback: keep screencast alive when Rust helper is not active
+                    CDP.keepScreenAlive().catch(() => {});
+                }
             }
         } catch (e) {
             ws.send(JSON.stringify({ event: 'error', data: { message: e.message } }));
@@ -2941,6 +2963,17 @@ HelperBridge.helperEvents.on('frame', (buf) => {
     for (const ws of clients) {
         if (ws.readyState === WebSocket.OPEN) {
             ws.send(buf);
+        }
+    }
+});
+// Fallback: Broadcast frames from CDP screencast when Rust helper is offline
+CDP.screenEvents.on('frame', (base64) => {
+    if (HelperBridge.isConnected()) return;
+    const jpegBuf = Buffer.from(base64, 'base64');
+    const tagged = Buffer.concat([Buffer.from([0x4A]), jpegBuf]);
+    for (const ws of clients) {
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(tagged);
         }
     }
 });

@@ -12,7 +12,7 @@
  * - Loopback local-admin protection.
  */
 
-import { randomBytes, createHash, timingSafeEqual } from 'crypto';
+import { randomBytes, randomInt, createHash, timingSafeEqual } from 'crypto';
 import { readFileSync, writeFileSync, existsSync, mkdirSync, appendFileSync } from 'fs';
 import { join } from 'path';
 
@@ -21,9 +21,9 @@ const AUTH_FILE = join(DATA_DIR, 'auth-store.json');
 const AUDIT_LOG = join(DATA_DIR, 'security-audit.jsonl');
 
 // Lifetimes & Limits
-export const PAIRING_CODE_TTL_MS = 5 * 60 * 1000;       // 5 minutes
-export const ACCESS_TOKEN_TTL_MS = 15 * 60 * 1000;      // 15 minutes
-export const REFRESH_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+export const PAIRING_CODE_TTL_MS = 15 * 60 * 1000;       // 15 minutes
+export const ACCESS_TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;      // 30 days
+export const REFRESH_TOKEN_TTL_MS = 90 * 24 * 60 * 60 * 1000; // 90 days
 export const MAX_PAIRING_ATTEMPTS = 5;
 export const PAIRING_LOCKOUT_MS = 15 * 60 * 1000;       // 15 minutes
 
@@ -203,8 +203,8 @@ function clearPairingFailures(identifier) {
 
 // --- 1. Pairing Code Lifecycle ---
 export function generatePairingCode() {
-    // Generate a cryptographically random 6-character alphanumeric pairing code
-    const raw = randomBytes(4).toString('hex').slice(0, 6).toUpperCase();
+    // Generate a cryptographically random 6-digit numeric pairing code
+    const raw = String(randomInt(100000, 1000000));
     state.activePairingCode = {
         codeHash: sha256(raw),
         expiresAt: Date.now() + PAIRING_CODE_TTL_MS
@@ -472,8 +472,8 @@ export function validateOriginAndHost(allowedHosts = ['localhost', '127.0.0.1'])
     return (req, res, next) => {
         const hostHeader = (req.headers['host'] || '').split(':')[0].toLowerCase();
 
-        // Check if host matches localhost or configured allowed host
-        const hostAllowed = allowedHosts.some(h => hostHeader === h || hostHeader.endsWith('.ts.net'));
+        // Check if host matches localhost, Tailscale MagicDNS (*.ts.net), or Tailscale CGNAT IP (100.x.y.z)
+        const hostAllowed = allowedHosts.some(h => hostHeader === h || hostHeader.endsWith('.ts.net') || hostHeader.startsWith('100.'));
         if (!hostAllowed) {
             logSecurityEvent('HOST_MISMATCH_REJECTED', { hostHeader, path: req.path });
             return res.status(400).json({ error: 'invalid_host', message: 'Host header not permitted' });
@@ -485,7 +485,7 @@ export function validateOriginAndHost(allowedHosts = ['localhost', '127.0.0.1'])
             try {
                 const originUrl = new URL(origin);
                 const originHost = originUrl.hostname.toLowerCase();
-                const originAllowed = allowedHosts.some(h => originHost === h || originHost.endsWith('.ts.net'));
+                const originAllowed = allowedHosts.some(h => originHost === h || originHost.endsWith('.ts.net') || originHost.startsWith('100.'));
                 if (!originAllowed) {
                     logSecurityEvent('BROWSER_ORIGIN_REJECTED', { origin, path: req.path });
                     return res.status(403).json({ error: 'invalid_origin', message: 'Browser origin not permitted' });

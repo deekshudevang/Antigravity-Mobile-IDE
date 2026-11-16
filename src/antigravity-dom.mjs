@@ -15,7 +15,7 @@ export const SELECTORS = {
     version: '2.1',
 
     // Most durable anchor: the chat panel itself (survives ask-prompts).
-    conversationView: '[data-testid="conversation-view"]',
+    conversationView: '[data-testid="conversation-view"], [data-testid="autoscroll-viewport"]',
 
     // Stable element id of the composer/input box — secondary anchor.
     inputBoxId: 'antigravity.agentSidePanelInputBox',
@@ -24,8 +24,8 @@ export const SELECTORS = {
     legacyContainerIds: ['cascade', 'conversation'],
 
     // A turn's message articles (ARIA — very stable).
-    userMessage: '[role="article"][aria-label="User message"]',
-    agentMessage: '[role="article"][aria-label="Agent response"]',
+    userMessage: '[data-testid="user-message"], [role="article"][aria-label="User message"]',
+    agentMessage: '[data-testid="agent-response"], [role="article"][aria-label="Agent response"]',
 
     // Inside an agent article.
     workedToggleText: /^Worked for/i,          // trajectory summary button text
@@ -44,6 +44,8 @@ export const SELECTORS = {
 
     // Input elements for prompt submission
     INPUT: [
+        'div[aria-label="Message input"]',
+        'div[role="combobox"][aria-label="Message input"]',
         'textarea.inputarea',
         'textarea[aria-label*="input" i]',
         '[data-testid="chat-input"]',
@@ -180,13 +182,197 @@ export function buildFocusInputScript() {
         const selectors = ${JSON.stringify(SELECTORS.INPUT)};
         for (const sel of selectors) {
             const el = document.querySelector(sel);
-            if (el && el.offsetParent !== null) {
+            if (el && (el.offsetParent !== null || el.isContentEditable)) {
                 el.focus();
                 if (typeof el.click === 'function') el.click();
                 return { found: true, selector: sel, tag: el.tagName };
             }
         }
         return { found: false, error: 'no_supported_input_element' };
+    })()`;
+}
+
+/**
+ * Returns a self-contained JS expression to read any existing draft in the composer.
+ */
+export function buildReadDraftScript() {
+    return `(function() {
+        const selectors = ${JSON.stringify(SELECTORS.INPUT)};
+        for (const sel of selectors) {
+            const el = document.querySelector(sel);
+            if (el && (el.offsetParent !== null || el.isContentEditable)) {
+                const text = (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT')
+                    ? (el.value || '')
+                    : (el.innerText || el.textContent || '');
+                return { found: true, text: text.trim(), selector: sel };
+            }
+        }
+        return { found: false, text: '' };
+    })()`;
+}
+
+/**
+ * Focuses the composer and selects all existing contents for atomic replacement.
+ * Supports Lexical (Antigravity 2.0), Monaco (IDE), and standard contenteditable/textarea.
+ */
+export function buildPrepareComposerScript() {
+    return `(function() {
+        const selectors = ${JSON.stringify(SELECTORS.INPUT)};
+        let el = null;
+        let matchedSelector = null;
+        for (const sel of selectors) {
+            const found = document.querySelector(sel);
+            if (found && (found.offsetParent !== null || found.isContentEditable)) {
+                el = found;
+                matchedSelector = sel;
+                break;
+            }
+        }
+        if (!el) return { success: false, error: 'no_composer_found' };
+
+        // 1. Read existing draft before touching selection
+        let draft = '';
+        const isInputOrTextArea = el.tagName === 'TEXTAREA' || el.tagName === 'INPUT';
+        if (isInputOrTextArea) {
+            draft = el.value || '';
+        } else {
+            draft = el.innerText || el.textContent || '';
+        }
+
+        // 2. Focus element
+        el.focus();
+        if (typeof el.click === 'function') el.click();
+
+        // 3. Select all contents using editor-specific selection API
+        let editorType = 'unknown';
+        if (isInputOrTextArea) {
+            editorType = el.tagName.toLowerCase();
+            try {
+                if (typeof el.setSelectionRange === 'function') {
+                    el.setSelectionRange(0, el.value.length);
+                }
+                if (typeof el.select === 'function') {
+                    el.select();
+                }
+            } catch (e) {}
+        } else if (el.__lexicalEditor || el.getAttribute('role') === 'combobox') {
+            editorType = 'lexical';
+            try {
+                if (typeof document.createRange === 'function' && typeof window.getSelection === 'function') {
+                    const range = document.createRange();
+                    range.selectNodeContents(el);
+                    const sel = window.getSelection();
+                    if (sel) {
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                }
+            } catch (e) {}
+            if (typeof document.execCommand === 'function') {
+                try { document.execCommand('selectAll', false, null); } catch (e) {}
+            }
+        } else if (el.isContentEditable || el.getAttribute('contenteditable') === 'true') {
+            editorType = 'contenteditable';
+            try {
+                if (typeof document.createRange === 'function' && typeof window.getSelection === 'function') {
+                    const range = document.createRange();
+                    range.selectNodeContents(el);
+                    const sel = window.getSelection();
+                    if (sel) {
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                    }
+                }
+            } catch (e) {}
+            if (typeof document.execCommand === 'function') {
+                try { document.execCommand('selectAll', false, null); } catch (e) {}
+            }
+        } else {
+            editorType = 'generic';
+        }
+
+        return {
+            success: true,
+            draft: draft.trim(),
+            selector: matchedSelector,
+            editorType
+        };
+    })()`;
+}
+
+/**
+ * Reads back the composer text and verifies it matches expectedText exactly.
+ */
+export function buildVerifyComposerScript(expectedText) {
+    return `(function() {
+        const expected = ${JSON.stringify(expectedText)};
+        const selectors = ${JSON.stringify(SELECTORS.INPUT)};
+        let el = null;
+        for (const sel of selectors) {
+            const found = document.querySelector(sel);
+            if (found && (found.offsetParent !== null || found.isContentEditable)) {
+                el = found;
+                break;
+            }
+        }
+        if (!el) return { success: false, error: 'no_composer_found', matches: false, actualText: '' };
+
+        const raw = (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT')
+            ? (el.value || '')
+            : (el.innerText || el.textContent || '');
+
+        const normActual = raw.replace(/\\r\\n/g, '\\n').trim();
+        const normExpected = expected.replace(/\\r\\n/g, '\\n').trim();
+        const matches = normActual === normExpected;
+
+        return {
+            success: true,
+            matches,
+            actualText: normActual,
+            expectedText: normExpected
+        };
+    })()`;
+}
+
+/**
+ * Verifies post-submit state: checks that composer cleared and/or user message appeared in conversation.
+ */
+export function buildVerifyPostSubmitScript(submittedText) {
+    return `(function() {
+        const submitted = ${JSON.stringify(submittedText)}.replace(/\\r\\n/g, '\\n').trim();
+        // 1. Check if composer cleared
+        let composerCleared = true;
+        const inputSelectors = ${JSON.stringify(SELECTORS.INPUT)};
+        for (const sel of inputSelectors) {
+            const found = document.querySelector(sel);
+            if (found && (found.offsetParent !== null || found.isContentEditable)) {
+                const text = ((found.tagName === 'TEXTAREA' || found.tagName === 'INPUT')
+                    ? (found.value || '')
+                    : (found.innerText || found.textContent || '')).trim();
+                if (text.length > 0 && text === submitted) {
+                    composerCleared = false;
+                }
+                break;
+            }
+        }
+
+        // 2. Check if message appears in user messages
+        let messageObservedInChat = false;
+        const userMsgSelectors = ${JSON.stringify(SELECTORS.userMessage)};
+        const messages = [...document.querySelectorAll(userMsgSelectors)];
+        for (const m of messages) {
+            const text = (m.innerText || m.textContent || '').replace(/\\r\\n/g, '\\n').trim();
+            if (text.includes(submitted.slice(0, 50))) {
+                messageObservedInChat = true;
+                break;
+            }
+        }
+
+        return {
+            composerCleared,
+            messageObservedInChat,
+            verified: composerCleared || messageObservedInChat
+        };
     })()`;
 }
 
@@ -320,6 +506,9 @@ function buildExtractionScript(sel) {
         return n;
     }
     function findScroll() {
+        // Direct anchor: Antigravity 2.0 autoscroll viewport
+        const directViewport = document.querySelector('[data-testid="autoscroll-viewport"]');
+        if (directViewport) return directViewport;
         // Primary anchor: the conversation panel (most durable; survives prompts).
         const conv = document.querySelector(SEL.conversationView);
         if (conv) {
@@ -328,7 +517,20 @@ function buildExtractionScript(sel) {
         }
         // Secondary anchor: the composer input box (present when idle).
         const input = document.getElementById(SEL.inputBoxId);
-        if (input) { const s = scrollAncestor(input); if (s) return s; }
+        if (input) {
+            let p = input;
+            for (let i = 0; i < 10 && p; i++) {
+                const vp = p.querySelector && p.querySelector('[data-testid="autoscroll-viewport"]');
+                if (vp) return vp;
+                if (p.previousElementSibling) {
+                    const prevVp = p.previousElementSibling.querySelector && p.previousElementSibling.querySelector('[data-testid="autoscroll-viewport"]');
+                    if (prevVp) return prevVp;
+                }
+                p = p.parentElement;
+            }
+            const s = scrollAncestor(input);
+            if (s) return s;
+        }
         // Anchor-independent fallback: during an ask-prompt the input box is
         // removed, but message articles / the radiogroup remain. Find the
         // scroll container from those instead.
@@ -483,8 +685,11 @@ function buildExtractionScript(sel) {
     const arts = [...scroll.querySelectorAll(SEL.userMessage + ',' + SEL.agentMessage)];
     arts.forEach(a => {
         const label = a.getAttribute('aria-label');
-        if (label === 'User message') {
-            let ut = (a.innerText || '').replace(/\\u00a0/g, ' ').trim();
+        const testId = a.getAttribute('data-testid');
+        if (label === 'User message' || testId === 'user-message') {
+            const content = a.querySelector('[data-testid="user-message-content"]') || a.querySelector('[data-testid="user-message-bubble"]') || a;
+            let ut = (content.innerText || '').replace(/\\u00a0/g, ' ').trim();
+            ut = ut.replace(/^\\s*You\\s+said\\s*/i, '');
             // strip a trailing hover timestamp the IDE appends, e.g.
             //   "6:21 PM" | "msg 6:21 PM" | "11:50 PM, 6/15/2026"
             ut = ut.replace(/\\s*(msg\\s*)?\\d{1,2}:\\d{2}\\s*(AM|PM)?\\s*(,?\\s*\\d{1,2}\\/\\d{1,2}\\/\\d{2,4})?\\s*$/i, '').trim();

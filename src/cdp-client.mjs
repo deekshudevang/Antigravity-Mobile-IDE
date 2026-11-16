@@ -13,6 +13,10 @@ import { EventEmitter } from 'events';
 import {
     buildFingerprintScript,
     buildFocusInputScript,
+    buildPrepareComposerScript,
+    buildVerifyComposerScript,
+    buildVerifyPostSubmitScript,
+    buildReadDraftScript,
     buildDetectStateScript,
     buildExtractApprovalScript,
     buildClickApprovalScript,
@@ -470,22 +474,80 @@ export async function injectCommand(text) {
 }
 
 /**
- * Inject text and press Enter to submit
+ * Find active chat/conversation target, falling back to editor
  */
-export async function injectAndSubmit(text) {
-    const target = await findEditorTarget();
-    if (!target) throw new Error('No editor target found');
+export async function findChatTarget() {
+    const targets = await getTargets();
+    const convTarget = targets.find(t =>
+        (t.type === 'page' || t.type === 'iframe') &&
+        (t.url?.includes('/c/') || t.url?.includes('extensionView=true'))
+    );
+    if (convTarget) return convTarget;
+    return findEditorTarget();
+}
 
-    const client = await connectToTarget(target);
+/**
+ * Inject text and press Enter to submit, with atomic replacement, draft preservation,
+ * and exact readback verification.
+ */
+export async function injectAndSubmit(text, options = {}) {
+    if (typeof text !== 'string' || text.length === 0) {
+        throw new Error('prompt text required');
+    }
+
+    const clientOverride = (options && typeof options.send === 'function') ? options : options?.clientOverride;
+    const onDraftPreserved = options?.onDraftPreserved || null;
+
+    let client = clientOverride;
+    let ownClient = false;
+    if (!client) {
+        const target = await findChatTarget();
+        if (!target) throw new Error('No editor or chat target found');
+        client = await connectToTarget(target);
+        ownClient = true;
+    }
 
     try {
-        // Use insertText for bulk text (more reliable)
-        await client.send('Input.insertText', { text });
+        // 1. Focus composer, select all existing contents, and read any draft
+        const prepRes = await client.send('Runtime.evaluate', {
+            expression: buildPrepareComposerScript(),
+            returnByValue: true
+        });
+        const prep = prepRes?.result?.value || {};
+        if (!prep.success) {
+            throw new Error(`Failed to focus and prepare composer: ${prep.error || 'unknown error'}`);
+        }
 
-        // Small delay
+        // Preserve draft if one was present
+        if (prep.draft && prep.draft.length > 0) {
+            if (typeof onDraftPreserved === 'function') {
+                onDraftPreserved(prep.draft);
+            }
+            screenEvents.emit('draft_preserved', {
+                draft: prep.draft,
+                length: prep.draft.length,
+                timestamp: new Date().toISOString()
+            });
+        }
+
         await new Promise(r => setTimeout(r, 50));
 
-        // Press Enter
+        // 2. Single insertion path: replace selection atomically with phone text
+        await client.send('Input.insertText', { text });
+
+        await new Promise(r => setTimeout(r, 60));
+
+        // 3. Read back composer and verify it equals the sent text exactly
+        const verifyRes = await client.send('Runtime.evaluate', {
+            expression: buildVerifyComposerScript(text),
+            returnByValue: true
+        });
+        const verify = verifyRes?.result?.value || {};
+        if (!verify.matches) {
+            throw new Error(`Composer readback mismatch: expected "${text}", got "${verify.actualText || ''}"`);
+        }
+
+        // 4. Submit only after verification passed
         await client.send('Input.dispatchKeyEvent', {
             type: 'keyDown',
             key: 'Enter',
@@ -501,9 +563,26 @@ export async function injectAndSubmit(text) {
             nativeVirtualKeyCode: 13
         });
 
-        return { success: true, submitted: text };
+        // 5. Post-submit verification: verify composer cleared and/or turn appeared
+        await new Promise(r => setTimeout(r, 100));
+        const postRes = await client.send('Runtime.evaluate', {
+            expression: buildVerifyPostSubmitScript(text),
+            returnByValue: true
+        });
+        const post = postRes?.result?.value || { verified: true };
+
+        return {
+            success: true,
+            submitted: text,
+            editorType: prep.editorType,
+            draftPreserved: !!prep.draft,
+            draft: prep.draft || null,
+            postVerification: post
+        };
     } finally {
-        client.close();
+        if (ownClient && client) {
+            try { client.close(); } catch (e) {}
+        }
     }
 }
 
