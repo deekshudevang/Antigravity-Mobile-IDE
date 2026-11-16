@@ -77,10 +77,31 @@ class ChatViewModel(private val repo: AppRepository) : ViewModel() {
     fun send(text: String) {
         val msg = text.trim()
         if (msg.isEmpty()) return
+        val idempKey = java.util.UUID.randomUUID().toString()
         _state.value = _state.value.copy(sending = true)
         viewModelScope.launch {
-            runCatching { repo.api.cdpInject(msg, submit = true) }
+            runCatching { repo.api.sendCommand(msg, idempKey) }
+                .onFailure {
+                    // Fall back to cdpInject if needed
+                    runCatching { repo.api.cdpInject(msg, submit = true) }
+                }
             _state.value = _state.value.copy(sending = false)
+            kotlinx.coroutines.delay(400)
+            load(initial = false)
+        }
+    }
+
+    fun stopAgent() {
+        viewModelScope.launch {
+            runCatching { repo.api.stopAgent() }
+            kotlinx.coroutines.delay(400)
+            load(initial = false)
+        }
+    }
+
+    fun respondApproval(decision: String) {
+        viewModelScope.launch {
+            runCatching { repo.api.respondToApproval(decision) }
             kotlinx.coroutines.delay(400)
             load(initial = false)
         }

@@ -263,13 +263,14 @@ class SessionViewModel(private val repo: AppRepository) : ViewModel() {
 
     fun refreshApprovals() {
         viewModelScope.launch {
+            val agentStateRes = runCatching { repo.api.getAgentState() }.getOrNull()
             runCatching { repo.api.approvals() }
                 .onSuccess { a ->
                     val pending = if (a.pending) a else null
                     val recentChat = System.currentTimeMillis() - lastChatActivityMs < 6000
                     val status = when {
-                        a.pending -> AgentStatus.Waiting
-                        recentChat -> AgentStatus.Running
+                        agentStateRes?.state == "waiting_approval" || a.pending -> AgentStatus.Waiting
+                        agentStateRes?.state == "running" || recentChat -> AgentStatus.Running
                         else -> AgentStatus.Idle
                     }
                     _state.value = _state.value.copy(pendingApproval = pending, agentStatus = status)

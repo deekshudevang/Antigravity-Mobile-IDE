@@ -37,6 +37,8 @@ import * as AuthService from './auth-service.mjs';
 import { eventBus } from './event-bus.mjs';
 import { commandLifecycle } from './command-lifecycle.mjs';
 import * as FileSecurity from './file-security.mjs';
+import { getTaskProgress } from './task-parser.mjs';
+import { getHealthReport } from './process-supervisor.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
@@ -2194,6 +2196,63 @@ app.get('/api/pair/status', (req, res) => {
     });
 });
 
+// --- Agent Control & Live Inspection (Phases 06 & 08) ---
+app.get('/api/ide/compatibility', AuthService.requireCapability(AuthService.CAPABILITIES.STATUS_READ), async (req, res) => {
+    try {
+        const result = await CDP.checkCompatibility();
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.get('/api/agent/state', AuthService.requireCapability(AuthService.CAPABILITIES.STATUS_READ), async (req, res) => {
+    try {
+        const state = await CDP.getAgentState();
+        res.json(state);
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.get('/api/agent/approval', AuthService.requireCapability(AuthService.CAPABILITIES.APPROVAL_RESPOND), async (req, res) => {
+    try {
+        const approval = await CDP.getPendingApproval();
+        res.json(approval);
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.post('/api/agent/approval/respond', AuthService.requireCapability(AuthService.CAPABILITIES.APPROVAL_RESPOND), async (req, res) => {
+    const { decision } = req.body || {};
+    if (!decision) return res.status(400).json({ error: 'decision required (approve | reject)' });
+    try {
+        const result = await CDP.respondToApproval(decision);
+        emitEvent('command', `Approval responded: ${decision}`);
+        eventBus.publish('approval_resolved', { decision }, 'observed');
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+app.post('/api/agent/stop', AuthService.requireCapability(AuthService.CAPABILITIES.PROMPT_SUBMIT), async (req, res) => {
+    try {
+        const result = await CDP.stopAgent();
+        emitEvent('command', 'Agent stopped by remote client');
+        eventBus.publish('agent_stopped', {}, 'observed');
+        res.json(result);
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
+// Task & Phase Monitoring (Phase 12)
+app.get('/api/tasks', AuthService.requireCapability(AuthService.CAPABILITIES.TASKS_READ), (req, res) => {
+    res.json(getTaskProgress(PROJECT_ROOT));
+});
+
 // Tap-to-control. Coordinates are normalised (0..1) over the captured desktop;
 // the desktop helper (desktop-helper.exe) maps them to absolute pixels for enigo.
 // Full-desktop control replaces the old CDP/window + mouse_injector.py path.
@@ -2264,6 +2323,25 @@ app.post('/api/screen/mouse', Pairing.requirePaired, async (req, res) => {
         }
         res.json({ success: true });
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
+// Emergency Kill Switch (Phase 14)
+app.post('/api/screen/kill-switch', Pairing.requirePaired, async (req, res) => {
+    try {
+        AuthService.logSecurityEvent('EMERGENCY_KILL_SWITCH_ENGAGED', {
+            triggeredBy: req.device?.id || 'authenticated_client',
+            timestamp: new Date().toISOString()
+        });
+        emitEvent('warning', '🚨 EMERGENCY KILL SWITCH ENGAGED: Halting agent and suspending input injection');
+        eventBus.publish('emergency_kill_switch', { status: 'engaged' }, 'observed');
+
+        try { await CDP.stopAgent(); } catch (e) { }
+        HelperBridge.clearPending();
+
+        res.json({ success: true, message: 'Emergency kill switch activated' });
+    } catch (e) {
+        res.status(500).json({ success: false, error: e.message });
+    }
 });
 
 // ============================================================================
@@ -2766,6 +2844,16 @@ app.get('/api/status', async (req, res) => {
         message_count: messages.length,
         cdp: cdpStatus
     });
+});
+
+// Comprehensive public health endpoint (Phase 05)
+app.get('/health', async (req, res) => {
+    try {
+        const report = await getHealthReport(CDP, HelperBridge);
+        res.json(report);
+    } catch (e) {
+        res.status(500).json({ status: 'unhealthy', error: e.message });
+    }
 });
 
 // ============================================================================

@@ -198,8 +198,33 @@ class ApiClient(private val settingsProvider: () -> ConnectionSettings) {
     suspend fun screenshots(): ScreenshotsResponse =
         json.decodeFromString(getRaw("/api/screenshots"))
 
-    suspend fun sendCommand(prompt: String): CommandResponse =
-        json.decodeFromString(postRaw("/api/commands/execute", bodyOf("prompt", prompt)))
+    suspend fun sendCommand(prompt: String, idempotencyKey: String? = null): CommandResponse {
+        val payload = buildJsonObject {
+            put("prompt", prompt)
+            if (idempotencyKey != null) {
+                put("idempotencyKey", idempotencyKey)
+            }
+        }.toString()
+        return json.decodeFromString(postRaw("/api/commands/execute", payload))
+    }
+
+    suspend fun getAgentState(): AgentStateResponse =
+        json.decodeFromString(getRaw("/api/agent/state"))
+
+    suspend fun getPendingApproval(): ApprovalResponse =
+        json.decodeFromString(getRaw("/api/agent/approval"))
+
+    suspend fun respondToApproval(decision: String): ActionResult =
+        json.decodeFromString(postRaw("/api/agent/approval/respond", bodyOf("decision", decision)))
+
+    suspend fun stopAgent(): ActionResult =
+        json.decodeFromString(postRaw("/api/agent/stop", "{}"))
+
+    suspend fun getIdeCompatibility(): IdeCompatibilityResponse =
+        json.decodeFromString(getRaw("/api/ide/compatibility"))
+
+    suspend fun tasks(): TasksResponse =
+        json.decodeFromString(getRaw("/api/tasks"))
 
     // --- Source toggle + live screen control ---
 

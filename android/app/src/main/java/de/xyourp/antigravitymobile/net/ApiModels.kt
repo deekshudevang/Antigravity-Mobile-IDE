@@ -359,6 +359,78 @@ data class TokenRefreshResponse(
     val error: String? = null,
 )
 
+// ---- Agent State & Approval & DOM Adapter (Phases 06 & 08) ----
+
+@Serializable
+data class AgentStateResponse(
+    val success: Boolean = false,
+    val state: String = "idle",
+    val source: String = "inferred",
+    val selector: String? = null,
+    val error: String? = null,
+)
+
+@Serializable
+data class ApprovalResponse(
+    val success: Boolean = false,
+    val pending: Boolean = false,
+    val text: String? = null,
+    val canApprove: Boolean = false,
+    val canReject: Boolean = false,
+    val timestamp: String? = null,
+    val error: String? = null,
+)
+
+@Serializable
+data class IdeCompatibilityResponse(
+    val success: Boolean = false,
+    val compatible: Boolean = false,
+    val adapterVersion: String? = null,
+    val appType: String? = null,
+    val score: Int = 0,
+    val hasInputs: Boolean = false,
+    val hasStop: Boolean = false,
+    val reason: String? = null,
+)
+
+// ---- Task & Phase Progress Tracking (Phase 12) ----
+
+@Serializable
+data class TaskPhaseItem(
+    val id: String = "",
+    val number: Int = 0,
+    val name: String = "",
+    val objective: String = "",
+    val status: String = "NOT_STARTED",
+)
+
+@Serializable
+data class TaskSummary(
+    val total: Int = 0,
+    val verified: Int = 0,
+    val completed: Int = 0,
+    val inProgress: Int = 0,
+    val pending: Int = 0,
+    val percent: Int = 0,
+)
+
+@Serializable
+data class PendingManualCheck(
+    val id: String = "",
+    val title: String = "",
+)
+
+@Serializable
+data class TasksResponse(
+    val success: Boolean = false,
+    val currentFocus: String = "",
+    val blockers: List<String> = emptyList(),
+    val pendingManual: List<PendingManualCheck> = emptyList(),
+    val phases: List<TaskPhaseItem> = emptyList(),
+    val summary: TaskSummary = TaskSummary(),
+    val error: String? = null,
+)
+
 
 
 

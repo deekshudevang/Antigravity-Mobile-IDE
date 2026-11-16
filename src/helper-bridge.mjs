@@ -21,6 +21,8 @@ const HELPER_PORT = Number(process.env.HELPER_PORT || process.env.RUSTDESK_HELPE
 const HELPER_URL = `ws://127.0.0.1:${HELPER_PORT}`;
 
 export const helperEvents = new EventEmitter();
+export function isConnected() { return connected; }
+export function clearPending() { pending = []; }
 
 let ws = null;
 let connected = false;

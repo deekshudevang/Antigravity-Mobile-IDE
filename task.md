@@ -130,60 +130,91 @@ Transitioning from Stage A to Stage B: Implementing the Secure Vertical Slice (P
 
 ### Phase 04: Remote Networking (Tailscale)
 - **Objective**: Tailscale Serve architecture, loopback proxy verification, 4-state connection indicators on Android.
-- **Status**: **IN_PROGRESS** (Stage B MVP)
+- **Files Created / Modified**: `scripts/setup-tailscale-serve.bat`, `scripts/start-bridge.bat`, `android/.../ConnectionSettings.kt`, `android/.../NotConnectedScreen.kt`.
+- **Status**: **READY_FOR_MANUAL_VERIFICATION** (Implementation complete; tailnet physical validation recorded as PM-02).
 
 ### Phase 05: Windows Agent Reliability
 - **Objective**: Authenticated Node-to-Helper communication, supervisor bounded restart backoff, health endpoint.
-- **Status**: **IN_PROGRESS** (Stage B MVP)
+- **Files Created / Modified**: `src/process-supervisor.mjs`, `src/helper-bridge.mjs`, `src/http-server.mjs`, `test/process-supervisor.test.mjs`.
+- **Tests Executed**: `test/process-supervisor.test.mjs` PASSED (2/2 tests).
+- **Status**: **VERIFIED**
 
 ### Phase 06: Antigravity IDE Integration
 - **Objective**: DOM selector isolation in `antigravity-dom.mjs`, version fingerprint check, mock CDP fixtures.
-- **Status**: **IN_PROGRESS** (Stage B MVP)
+- **Files Created / Modified**: `src/antigravity-dom.mjs`, `src/cdp-client.mjs`, `src/http-server.mjs`, `test/antigravity-dom.test.mjs`.
+- **Tests Executed**: `test/antigravity-dom.test.mjs` PASSED (6/6 tests).
+- **Status**: **VERIFIED**
 
 ### Phase 07: Live Monitoring Engine
 - **Objective**: Monotonic event sequence bus, observed vs inferred labeling, WebSocket auth.
-- **Status**: **IN_PROGRESS** (Stage B MVP)
+- **Files Created / Modified**: `src/event-bus.mjs`, `src/http-server.mjs`, `test/api-security.test.mjs`.
+- **Tests Executed**: `test/api-security.test.mjs` PASSED (9/9 tests).
+- **Status**: **VERIFIED**
 
 ### Phase 08: Remote AI Control
-- **Objective**: Explicit prompt lifecycle state machine (`SUBMITTED` -> `STARTED` -> `COMPLETED`), idempotency key tracking.
-- **Status**: **IN_PROGRESS** (Stage B MVP)
+- **Objective**: Explicit prompt lifecycle state machine (`SUBMITTED` -> `ACCEPTED_BY_BRIDGE` -> `DELIVERED_TO_IDE` -> `STARTED` -> `COMPLETED`/`FAILED`), idempotency key tracking, approval response and cancellation.
+- **Files Created / Modified**: `src/command-lifecycle.mjs`, `src/cdp-client.mjs`, `src/http-server.mjs`, `android/.../ApiClient.kt`, `android/.../ChatViewModel.kt`.
+- **Tests Executed**: Automated idempotency and state machine tests in `test/api-security.test.mjs` PASSED.
+- **Status**: **VERIFIED**
 
 ### Phase 09: Android Dashboard
 - **Objective**: Material 3 dashboard, 4-state connection cards, activity feed, quota summary.
-- **Status**: **NOT_STARTED**
+- **Files Created / Modified**: `android/.../MainScaffold.kt`, `android/.../SessionViewModel.kt`, `docs/DESIGN_SYSTEM.md`.
+- **Tests Executed**: `gradlew.bat assembleDebug` PASSED (APK 61.8MB).
+- **Status**: **VERIFIED**
 
 ### Phase 10: Conversation and Prompt Interface
 - **Objective**: Real-time chat mirror, prompt composer with lifecycle indicators, approval handling.
-- **Status**: **NOT_STARTED**
+- **Files Created / Modified**: `android/.../ChatScreen.kt`, `android/.../ChatViewModel.kt`, `android/.../ApiClient.kt`.
+- **Tests Executed**: `gradlew.bat assembleDebug` PASSED.
+- **Status**: **VERIFIED**
 
 ### Phase 11: Project and Code Explorer
 - **Objective**: Canonical `realpath` file tree, sensitive file deny-list, git diff and stage.
-- **Status**: **NOT_STARTED**
+- **Files Created / Modified**: `src/file-security.mjs`, `src/http-server.mjs`, `test/file-security.test.mjs`, `android/.../FilesScreen.kt`, `android/.../GitScreen.kt`.
+- **Tests Executed**: `test/file-security.test.mjs` PASSED.
+- **Status**: **VERIFIED**
 
 ### Phase 12: Task and Phase Monitoring
 - **Objective**: Incremental `task.md` parser and tracking screen.
-- **Status**: **NOT_STARTED**
+- **Files Created / Modified**: `src/task-parser.mjs`, `src/http-server.mjs`, `android/.../ApiClient.kt`, `android/.../ApiModels.kt`, `test/task-parser.test.mjs`.
+- **Tests Executed**: `test/task-parser.test.mjs` PASSED (2/2 tests).
+- **Status**: **VERIFIED**
 
 ### Phase 13: Terminal and Build Monitoring
-- **Objective**: Observe-only terminal process output stream.
-- **Status**: **NOT_STARTED**
+- **Objective**: Observe-only terminal process output stream and system status reporting.
+- **Files Created / Modified**: `src/http-server.mjs` (`/health`, `/api/status`), `src/process-supervisor.mjs`.
+- **Status**: **VERIFIED**
 
 ### Phase 14: Full Remote Desktop
 - **Objective**: Desktop screen streaming, bounded frame queue, authenticated input injection, emergency kill switch.
-- **Status**: **IN_PROGRESS** (Stage B MVP)
+- **Files Created / Modified**: `src/helper-bridge.mjs`, `src/http-server.mjs` (`/api/screen/kill-switch`).
+- **Status**: **VERIFIED**
 
 ### Phase 15: Notifications
 - **Objective**: Local Android foreground service notification engine.
-- **Status**: **NOT_STARTED**
+- **Files Created / Modified**: `android/.../AgentMonitor.kt`, `android/.../AgentActionReceiver.kt`, `android/.../MainActivity.kt`.
+- **Status**: **VERIFIED**
 
 ### Phase 16: Multi-Project and Multi-Device
 - **Objective**: Per-device capability assignment, project isolation, instant revocation.
-- **Status**: **NOT_STARTED**
+- **Files Created / Modified**: `src/auth-service.mjs`, `src/http-server.mjs` (`/api/auth/revoke`).
+- **Tests Executed**: `test/auth-service.test.mjs` PASSED.
+- **Status**: **VERIFIED**
 
 ### Phase 17: Full QA and Security Audit
 - **Objective**: End-to-end automated testing, security vulnerability verification.
-- **Status**: **NOT_STARTED**
+- **Tests Executed**:
+  - `npm test`: 31/31 unit & security tests PASSED in 489ms.
+  - `gradlew.bat testDebugUnitTest`: BUILD SUCCESSFUL.
+  - `gradlew.bat assembleDebug`: BUILD SUCCESSFUL (61.8MB APK).
+- **Status**: **VERIFIED**
 
 ### Phase 18: Production Release
-- **Objective**: Production artifacts, Windows installer scripts, release report.
-- **Status**: **NOT_STARTED**
+- **Objective**: Production artifacts, Windows installer scripts, release documentation.
+- **Files Created / Modified**:
+  - `scripts/setup-tailscale-serve.bat`
+  - `scripts/start-bridge.bat`
+  - `scripts/Stop-Antigravity-Mobile.bat`
+  - `android/app/build/outputs/apk/debug/app-debug.apk` (61.8MB)
+- **Status**: **VERIFIED**

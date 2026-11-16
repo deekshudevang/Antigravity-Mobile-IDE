@@ -6,13 +6,19 @@ echo   Stopping Antigravity Mobile Server
 echo ==========================================
 echo.
 
-REM Stop HTTP server on port 3001
-echo Checking HTTP server (port 3001)...
+REM Stop HTTP server on port 5000 (and legacy 3001)
+echo Checking HTTP server (port 5000)...
 set "FOUND_HTTP=0"
-for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3001 ^| findstr LISTENING 2^>nul') do (
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :5000 ^| findstr LISTENING 2^>nul') do (
     echo   Found HTTP server process with PID: %%a
     taskkill /PID %%a /F >nul 2>&1
     echo   HTTP server stopped.
+    set "FOUND_HTTP=1"
+)
+for /f "tokens=5" %%a in ('netstat -aon ^| findstr :3001 ^| findstr LISTENING 2^>nul') do (
+    echo   Found legacy HTTP server process with PID: %%a
+    taskkill /PID %%a /F >nul 2>&1
+    echo   Legacy HTTP server stopped.
     set "FOUND_HTTP=1"
 )
 

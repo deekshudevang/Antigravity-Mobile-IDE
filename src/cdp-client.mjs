@@ -10,6 +10,14 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { EventEmitter } from 'events';
+import {
+    buildFingerprintScript,
+    buildFocusInputScript,
+    buildDetectStateScript,
+    buildExtractApprovalScript,
+    buildClickApprovalScript,
+    buildStopAgentScript
+} from './antigravity-dom.mjs';
 
 export const screenEvents = new EventEmitter();
 
@@ -431,37 +439,9 @@ export async function injectCommand(text) {
     const client = await connectToTarget(target);
 
     try {
-        // First, try to find and focus the input field
+        // First, try to find and focus the input field using isolated DOM adapter
         await client.send('Runtime.evaluate', {
-            expression: `
-                (function() {
-                    // Look for common input selectors in VS Code-like editors
-                    const selectors = [
-                        'textarea.inputarea',
-                        'textarea[aria-label*="input"]',
-                        'div[contenteditable="true"]',
-                        '.monaco-inputbox textarea',
-                        'textarea'
-                    ];
-                    
-                    for (const sel of selectors) {
-                        const el = document.querySelector(sel);
-                        if (el) {
-                            el.focus();
-                            return { found: true, selector: sel };
-                        }
-                    }
-                    
-                    // If no textarea, try to click the input area
-                    const inputArea = document.querySelector('.input-area, .chat-input, [class*="input"]');
-                    if (inputArea) {
-                        inputArea.click();
-                        return { found: true, clicked: true };
-                    }
-                    
-                    return { found: false };
-                })()
-            `,
+            expression: buildFocusInputScript(),
             returnByValue: true
         });
 
@@ -2156,6 +2136,146 @@ export async function clickElementByXPath(xpath) {
 }
 
 /**
+ * Check DOM fingerprint compatibility across targets (Phase 06)
+ */
+export async function checkCompatibility() {
+    const allTargets = await getTargets();
+    const candidates = allTargets.filter(t => t.type === 'page' || t.type === 'iframe');
+    for (const target of candidates) {
+        try {
+            const { default: WebSocket } = await import('ws');
+            const ws = new WebSocket(target.webSocketDebuggerUrl);
+            const res = await new Promise((resolve) => {
+                const timer = setTimeout(() => { ws.close(); resolve(null); }, 3000);
+                ws.on('message', (d) => {
+                    const msg = JSON.parse(d.toString());
+                    if (msg.id === 1) {
+                        clearTimeout(timer);
+                        ws.close();
+                        resolve(msg.result?.result?.value);
+                    }
+                });
+                ws.on('open', () => {
+                    ws.send(JSON.stringify({
+                        id: 1,
+                        method: 'Runtime.evaluate',
+                        params: { expression: buildFingerprintScript(), returnByValue: true }
+                    }));
+                });
+                ws.on('error', () => { clearTimeout(timer); resolve(null); });
+            });
+            if (res && res.compatible) return { success: true, ...res };
+        } catch (e) { }
+    }
+    return { success: false, compatible: false, reason: 'integration_incompatible' };
+}
+
+/**
+ * Detect current agent state (idle, running, waiting_approval)
+ */
+export async function getAgentState() {
+    const allTargets = await getTargets();
+    const candidates = allTargets.filter(t => t.type === 'page' || t.type === 'iframe');
+    for (const target of candidates) {
+        try {
+            const { default: WebSocket } = await import('ws');
+            const ws = new WebSocket(target.webSocketDebuggerUrl);
+            const res = await new Promise((resolve) => {
+                const timer = setTimeout(() => { ws.close(); resolve(null); }, 3000);
+                ws.on('message', (d) => {
+                    const msg = JSON.parse(d.toString());
+                    if (msg.id === 1) {
+                        clearTimeout(timer);
+                        ws.close();
+                        resolve(msg.result?.result?.value);
+                    }
+                });
+                ws.on('open', () => {
+                    ws.send(JSON.stringify({
+                        id: 1,
+                        method: 'Runtime.evaluate',
+                        params: { expression: buildDetectStateScript(), returnByValue: true }
+                    }));
+                });
+                ws.on('error', () => { clearTimeout(timer); resolve(null); });
+            });
+            if (res && res.state) return { success: true, ...res };
+        } catch (e) { }
+    }
+    return { success: true, state: 'idle', source: 'inferred' };
+}
+
+/**
+ * Get pending approval request details
+ */
+export async function getPendingApproval() {
+    const allTargets = await getTargets();
+    const candidates = allTargets.filter(t => t.type === 'page' || t.type === 'iframe');
+    for (const target of candidates) {
+        try {
+            const { default: WebSocket } = await import('ws');
+            const ws = new WebSocket(target.webSocketDebuggerUrl);
+            const res = await new Promise((resolve) => {
+                const timer = setTimeout(() => { ws.close(); resolve(null); }, 3000);
+                ws.on('message', (d) => {
+                    const msg = JSON.parse(d.toString());
+                    if (msg.id === 1) {
+                        clearTimeout(timer);
+                        ws.close();
+                        resolve(msg.result?.result?.value);
+                    }
+                });
+                ws.on('open', () => {
+                    ws.send(JSON.stringify({
+                        id: 1,
+                        method: 'Runtime.evaluate',
+                        params: { expression: buildExtractApprovalScript(), returnByValue: true }
+                    }));
+                });
+                ws.on('error', () => { clearTimeout(timer); resolve(null); });
+            });
+            if (res && res.pending) return { success: true, ...res };
+        } catch (e) { }
+    }
+    return { success: true, pending: false };
+}
+
+/**
+ * Approve or reject a pending approval request
+ */
+export async function respondToApproval(decision) {
+    const allTargets = await getTargets();
+    const candidates = allTargets.filter(t => t.type === 'page' || t.type === 'iframe');
+    for (const target of candidates) {
+        try {
+            const { default: WebSocket } = await import('ws');
+            const ws = new WebSocket(target.webSocketDebuggerUrl);
+            const res = await new Promise((resolve) => {
+                const timer = setTimeout(() => { ws.close(); resolve(null); }, 3000);
+                ws.on('message', (d) => {
+                    const msg = JSON.parse(d.toString());
+                    if (msg.id === 1) {
+                        clearTimeout(timer);
+                        ws.close();
+                        resolve(msg.result?.result?.value);
+                    }
+                });
+                ws.on('open', () => {
+                    ws.send(JSON.stringify({
+                        id: 1,
+                        method: 'Runtime.evaluate',
+                        params: { expression: buildClickApprovalScript(decision), returnByValue: true }
+                    }));
+                });
+                ws.on('error', () => { clearTimeout(timer); resolve(null); });
+            });
+            if (res && res.success) return { success: true, decision };
+        } catch (e) { }
+    }
+    return { success: false, error: 'Approval button not found' };
+}
+
+/**
  * Stop or abort the running agent in the chat view
  */
 export async function stopAgent() {
@@ -2163,16 +2283,7 @@ export async function stopAgent() {
     const candidates = allTargets.filter(t => t.type === 'page' || t.type === 'iframe');
     candidates.sort((a, b) => (b.url?.includes('extensionView=true') ? 1 : 0) - (a.url?.includes('extensionView=true') ? 1 : 0));
 
-    const SCRIPT = `(() => {
-        const selectors = [
-            '[data-testid="webview-agent-cursor-stop-button"]',
-            '[data-testid="running-selection-stop"]',
-            '[data-testid="running-confirm-stop"]',
-            '[data-testid="running-row-stop"]',
-            '[data-testid="subagent-stop"]',
-            'button[aria-label*="Stop" i]',
-            'button[aria-label*="Cancel" i]'
-        ];
+    const SCRIPT = buildStopAgentScript();
         for (const sel of selectors) {
             const btn = document.querySelector(sel);
             if (btn && btn.offsetParent !== null) {
