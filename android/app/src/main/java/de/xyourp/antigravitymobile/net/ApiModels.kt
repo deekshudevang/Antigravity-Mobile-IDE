@@ -119,6 +119,8 @@ data class ScreenshotItem(
     val url: String? = null,
 )
 
+
+
 @Serializable
 data class ScreenshotsResponse(
     val screenshots: List<ScreenshotItem> = emptyList(),
@@ -126,10 +128,32 @@ data class ScreenshotsResponse(
 )
 
 @Serializable
-data class CommandResponse(
-    val success: Boolean = false,
+data class CommandItem(
+    val id: String = "",
+    val text: String = "",
+    val state: String = "SUBMITTED",
+    val idempotencyKey: String? = null,
+    val timestamp: String = "",
     val error: String? = null,
 )
+
+@Serializable
+data class CommandLifecycleEvent(
+    val commandId: String = "",
+    val state: String = "",
+    val timestamp: String = "",
+    val error: String? = null,
+)
+
+@Serializable
+data class CommandResponse(
+    val success: Boolean = false,
+    val isDuplicate: Boolean = false,
+    val command: CommandItem? = null,
+    val error: String? = null,
+)
+
+
 
 // --- CDP source (which Antigravity app the bridge mirrors) ---
 
@@ -309,3 +333,33 @@ data class UploadResponse(
     val saved: List<String> = emptyList(),
     val error: String? = null,
 )
+
+// ---- Dual-Token Pairing & Command Lifecycle (Phase 03 / Phase 08) ----
+
+@Serializable
+data class PairResponse(
+    val success: Boolean = false,
+    val token: String? = null,
+    val accessToken: String? = null,
+    val refreshToken: String? = null,
+    val deviceId: String? = null,
+    val expiresIn: Int? = null,
+    val capabilities: List<String> = emptyList(),
+    val error: String? = null,
+    val retryAfter: Int? = null,
+)
+
+@Serializable
+data class TokenRefreshResponse(
+    val success: Boolean = false,
+    val accessToken: String? = null,
+    val refreshToken: String? = null,
+    val expiresIn: Int? = null,
+    val capabilities: List<String> = emptyList(),
+    val error: String? = null,
+)
+
+
+
+
+

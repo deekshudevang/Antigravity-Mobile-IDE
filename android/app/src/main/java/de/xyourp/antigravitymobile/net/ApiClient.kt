@@ -55,8 +55,11 @@ class ApiClient(private val settingsProvider: () -> ConnectionSettings) {
         val builder = Request.Builder().url(settings().restUrl(path)).get()
         // Send the pairing token on GETs too — paired endpoints like /api/dirs
         // otherwise 403 and the error JSON silently parses into an empty result.
-        val token = settings().deviceToken
-        if (token.isNotBlank()) builder.header("x-device-token", token)
+        val token = settings().effectiveToken
+        if (token.isNotBlank()) {
+            builder.header("Authorization", "Bearer $token")
+            builder.header("x-device-token", token)
+        }
         val req = builder.build()
         client.newCall(req).execute().use { resp ->
             val body = resp.body?.string().orEmpty()
@@ -71,8 +74,11 @@ class ApiClient(private val settingsProvider: () -> ConnectionSettings) {
         val builder = Request.Builder()
             .url(settings().restUrl(path))
             .post(jsonBody.toRequestBody(JSON_MEDIA))
-        val token = settings().deviceToken
-        if (token.isNotBlank()) builder.header("x-device-token", token)
+        val token = settings().effectiveToken
+        if (token.isNotBlank()) {
+            builder.header("Authorization", "Bearer $token")
+            builder.header("x-device-token", token)
+        }
         val req = builder.build()
         client.newCall(req).execute().use { resp ->
             val body = resp.body?.string().orEmpty()
@@ -98,6 +104,21 @@ class ApiClient(private val settingsProvider: () -> ConnectionSettings) {
 
     suspend fun cdpStatus(): CdpStatusResponse =
         json.decodeFromString(getRaw("/api/cdp/status"))
+
+    suspend fun refreshTokens(refreshToken: String): TokenRefreshResponse = withContext(Dispatchers.IO) {
+        val payload = buildJsonObject {
+            put("refreshToken", refreshToken)
+        }.toString()
+        json.decodeFromString(postRaw("/api/auth/token/refresh", payload))
+    }
+
+    suspend fun executeCommand(prompt: String, idempotencyKey: String = "cmd_${System.currentTimeMillis()}"): CommandResponse = withContext(Dispatchers.IO) {
+        val payload = buildJsonObject {
+            put("prompt", prompt)
+            put("idempotencyKey", idempotencyKey)
+        }.toString()
+        json.decodeFromString(postRaw("/api/commands/execute", payload))
+    }
 
     suspend fun workspace(): WorkspaceResponse =
         json.decodeFromString(getRaw("/api/workspace"))
@@ -270,13 +291,16 @@ class ApiClient(private val settingsProvider: () -> ConnectionSettings) {
         try {
             client.newCall(req).execute().use { resp ->
                 val text = resp.body?.string().orEmpty()
-                val token = runCatching {
-                    (json.parseToJsonElement(text) as? kotlinx.serialization.json.JsonObject)
-                        ?.get("token")?.let { t -> (t as? kotlinx.serialization.json.JsonPrimitive)?.content }
-                }.getOrNull()
+                val parsedObj = runCatching { json.parseToJsonElement(text) as? kotlinx.serialization.json.JsonObject }.getOrNull()
+                val token = parsedObj?.get("token")?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content }
+                    ?: parsedObj?.get("accessToken")?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content }
+                val refreshToken = parsedObj?.get("refreshToken")?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content }
+                val deviceId = parsedObj?.get("deviceId")?.let { (it as? kotlinx.serialization.json.JsonPrimitive)?.content }
+
                 when {
-                    resp.isSuccessful && !token.isNullOrBlank() -> PairOutcome(true, token, "ok")
+                    resp.isSuccessful && !token.isNullOrBlank() -> PairOutcome(true, token, "ok", refreshToken, deviceId)
                     resp.code == 401 -> PairOutcome(false, null, "Invalid code — re-check the PC console.")
+                    resp.code == 429 -> PairOutcome(false, null, "Too many pairing attempts — temporarily locked out.")
                     else -> PairOutcome(false, null, "Server returned HTTP ${resp.code}")
                 }
             }
@@ -375,7 +399,13 @@ class ApiClient(private val settingsProvider: () -> ConnectionSettings) {
         }.toString()))
 
     /** Result of a pairing attempt — [detail] is a human-readable reason on failure. */
-    data class PairOutcome(val ok: Boolean, val token: String?, val detail: String)
+    data class PairOutcome(
+        val ok: Boolean,
+        val token: String?,
+        val detail: String,
+        val refreshToken: String? = null,
+        val deviceId: String? = null
+    )
 
     private fun bodyOf(key: String, value: String): String =
         buildJsonObject { put(key, value) }.toString()

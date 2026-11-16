@@ -102,8 +102,31 @@ Transitioning from Stage A to Stage B: Implementing the Secure Vertical Slice (P
 
 ### Phase 03: Security Engineering
 - **Objective**: Implement pairing lifecycle, access + rotating refresh tokens, hashed credentials, Keystore encryption, loopback binding, and capability RBAC.
-- **Files Modified**: `src/pairing-service.mjs`, `src/auth-service.mjs`, `src/http-server.mjs`, `android/.../SettingsStore.kt`, `android/.../AndroidManifest.xml`.
-- **Status**: **IN_PROGRESS** (Stage B Core)
+- **Files Created / Modified**:
+  - `src/auth-service.mjs` (dual tokens, rotating refresh credentials, token reuse theft detection, rate limiting, RBAC, constant-time checks)
+  - `src/pairing-service.mjs` (delegation to AuthService)
+  - `src/file-security.mjs` (canonical realpath, sensitive file deny-list, Windows ADS and reserved name protection)
+  - `src/command-lifecycle.mjs` (FSM: SUBMITTED -> ACCEPTED_BY_BRIDGE -> DELIVERED_TO_IDE -> STARTED -> COMPLETED/FAILED, idempotency key tracking)
+  - `src/event-bus.mjs` (monotonic event sequence bus, observed vs inferred labeling, replay buffer)
+  - `src/http-server.mjs` (loopback 127.0.0.1 binding, Origin/Host validation, authenticated WS upgrade, secured file routes)
+  - `android/app/src/main/java/de/xyourp/antigravitymobile/data/KeyStoreHelper.kt` (AES-256-GCM Keystore hardware encryption)
+  - `android/app/src/main/java/de/xyourp/antigravitymobile/data/SettingsStore.kt` (hardware-encrypted access and refresh token storage)
+  - `android/app/src/main/java/de/xyourp/antigravitymobile/data/ConnectionSettings.kt` (auto HTTPS/WSS for Tailscale MagicDNS, dual-token support)
+  - `android/app/src/main/java/de/xyourp/antigravitymobile/AndroidManifest.xml` (`allowBackup="false"`)
+  - `android/app/src/main/java/de/xyourp/antigravitymobile/net/ApiClient.kt` (dual-token pairing, Authorization Bearer headers)
+  - `android/app/src/main/java/de/xyourp/antigravitymobile/net/ApiModels.kt` (PairResponse, TokenRefreshResponse, CommandResponse, CommandItem)
+  - `test/auth-service.test.mjs`, `test/api-security.test.mjs`, `test/file-security.test.mjs`, `test/pairing-service.test.mjs`
+  - `android/app/src/test/java/de/xyourp/antigravitymobile/ConnectionSettingsTest.kt`
+- **Tests Executed**:
+  - `npm test`: 18/18 tests PASSED (duration: 454ms)
+  - `gradlew.bat testDebugUnitTest`: BUILD SUCCESSFUL (24 tasks up-to-date)
+  - `gradlew.bat assembleDebug`: BUILD SUCCESSFUL (61,323,652 bytes APK generated)
+- **Status**: **VERIFIED**
+
+### Stage B Exit Criteria Status: READY_FOR_MANUAL_VERIFICATION
+- Phase 03 fully implemented and verified with automated suites.
+- Minimum viable parts of Phases 04, 05, 06, 07, 08, 14 wired into bridge.
+- External/physical checks documented in PENDING_MANUAL (PM-01 to PM-04).
 
 ### Phase 04: Remote Networking (Tailscale)
 - **Objective**: Tailscale Serve architecture, loopback proxy verification, 4-state connection indicators on Android.

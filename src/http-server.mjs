@@ -33,6 +33,10 @@ import * as OllamaClient from './ollama-client.mjs';
 import * as Git from './git-service.mjs';
 import * as HelperBridge from './helper-bridge.mjs';
 import * as Pairing from './pairing-service.mjs';
+import * as AuthService from './auth-service.mjs';
+import { eventBus } from './event-bus.mjs';
+import { commandLifecycle } from './command-lifecycle.mjs';
+import * as FileSecurity from './file-security.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
@@ -453,8 +457,10 @@ ChatStream.setNotifyCallback((evt) => broadcast('agent_event', evt));
 // ============================================================================
 const app = express();
 const httpServer = createServer(app);
-const wss = new WebSocketServer({ server: httpServer });
+const wss = new WebSocketServer({ noServer: true });
+httpServer.on('upgrade', AuthService.createWebSocketUpgradeHandler(wss));
 
+app.use(AuthService.validateOriginAndHost(['localhost', '127.0.0.1']));
 app.use(express.json({ limit: '50mb' }));
 
 // ============================================================================
@@ -993,17 +999,30 @@ app.post('/api/admin/commands', localhostOnly, (req, res) => {
     res.json({ success: true, commands });
 });
 
-// Execute a quick command (inject prompt into agent via CDP)
-app.post('/api/commands/execute', async (req, res) => {
-    const { prompt } = req.body;
+// Execute a command (inject prompt into agent via CDP)
+app.post('/api/commands/execute', AuthService.requireCapability(AuthService.CAPABILITIES.PROMPT_SUBMIT), async (req, res) => {
+    const { prompt, idempotencyKey } = req.body || {};
     if (!prompt) return res.status(400).json({ error: 'prompt required' });
+
+    const registered = commandLifecycle.registerCommand(prompt, idempotencyKey);
+    if (registered.isDuplicate) {
+        return res.json({ success: true, isDuplicate: true, command: registered.command });
+    }
+
+    commandLifecycle.transition(registered.command.id, commandLifecycle.STATES.ACCEPTED_BY_BRIDGE);
+
     try {
+        commandLifecycle.transition(registered.command.id, commandLifecycle.STATES.DELIVERED_TO_IDE);
         const result = await CDP.injectAndSubmit(prompt);
+        commandLifecycle.transition(registered.command.id, commandLifecycle.STATES.STARTED, { result });
         emitEvent('command', `Executed: ${prompt.slice(0, 50)}`);
         trackMetric('commands');
-        res.json({ success: true, ...result });
+        eventBus.publish('command_started', { commandId: registered.command.id, prompt: prompt.slice(0, 100) }, 'observed');
+        res.json({ success: true, isDuplicate: false, command: registered.command, result });
     } catch (e) {
-        res.status(500).json({ success: false, error: e.message });
+        commandLifecycle.transition(registered.command.id, commandLifecycle.STATES.FAILED, { error: e.message });
+        eventBus.publish('command_failed', { commandId: registered.command.id, error: e.message }, 'inferred');
+        res.status(500).json({ success: false, command: registered.command, error: e.message });
     }
 });
 
@@ -2113,19 +2132,66 @@ app.post('/api/launch/ide', Pairing.requirePaired, (req, res) =>
 app.post('/api/launch/conversation', Pairing.requirePaired, (req, res) =>
     launchAntigravity('app', req.body?.path, res));
 
-// --- One-time device pairing (K2) ---
-// Phone submits the code shown on the PC once; gets a token it stores and sends
-// as `x-device-token` on every input request.
-app.post('/api/pair', (req, res) => {
+// --- One-time device pairing (K2 / Phase 03) ---
+// Phone submits the code shown on the PC once; gets dual access + refresh tokens
+app.post('/api/pair', AuthService.pairRateLimiter, (req, res) => {
     const { code, name } = req.body || {};
-    const token = Pairing.pair(String(code ?? ''), name || 'phone');
-    if (!token) return res.status(401).json({ error: 'invalid_code' });
-    res.json({ success: true, token });
+    const ip = req.ip || req.socket?.remoteAddress || '127.0.0.1';
+    const result = AuthService.pairDevice(String(code ?? ''), name || 'phone', ip);
+    if (!result.success) {
+        return res.status(401).json(result);
+    }
+    emitEvent('device', `Paired new device: ${result.deviceId} (${name || 'phone'})`);
+    res.json(result);
+});
+
+// Refresh access token using rotating refresh token
+app.post('/api/auth/token/refresh', (req, res) => {
+    const { refreshToken } = req.body || {};
+    const result = AuthService.refreshAccessToken(refreshToken);
+    if (!result.success) {
+        return res.status(401).json(result);
+    }
+    res.json(result);
+});
+
+// Explicit session revocation (closes active WebSockets and invalidates device family)
+app.post('/api/auth/revoke', (req, res) => {
+    const authHeader = req.headers['authorization'];
+    let token = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.slice(7);
+    } else {
+        token = req.get('x-device-token');
+    }
+    const session = AuthService.validateAccessToken(token);
+    if (!session) return res.status(401).json({ error: 'unauthorized' });
+
+    const targetDeviceId = req.body?.deviceId || session.deviceId;
+    if (targetDeviceId !== session.deviceId && !session.capabilities.includes(AuthService.CAPABILITIES.SESSION_REVOKE)) {
+        return res.status(403).json({ error: 'forbidden', message: 'Insufficient capability to revoke other devices' });
+    }
+
+    const revoked = AuthService.revokeDevice(targetDeviceId);
+    emitEvent('device', `Revoked device: ${targetDeviceId}`);
+    res.json({ success: revoked });
 });
 
 // Whether the presented token is paired (phone shows paired/unpaired state).
 app.get('/api/pair/status', (req, res) => {
-    res.json({ paired: Pairing.isPaired(req.get('x-device-token')) });
+    const authHeader = req.headers['authorization'];
+    let token = null;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+        token = authHeader.slice(7);
+    } else {
+        token = req.get('x-device-token');
+    }
+    const valid = AuthService.validateAccessToken(token);
+    res.json({
+        paired: !!valid,
+        deviceId: valid?.deviceId || null,
+        capabilities: valid?.capabilities || []
+    });
 });
 
 // Tap-to-control. Coordinates are normalised (0..1) over the captured desktop;
@@ -2306,19 +2372,13 @@ app.post('/api/git/checkout', async (req, res) => {
 app.get('/api/files', (req, res) => {
     try {
         const requestedPath = req.query.path || workspacePath;
-
-        // Resolve to absolute path
-        const fullPath = resolve(requestedPath);
-
-        if (!existsSync(fullPath)) {
-            return res.status(404).json({ error: 'Path not found' });
+        const validated = FileSecurity.validateWorkspacePath(requestedPath, workspacePath);
+        if (!validated.valid) {
+            const status = validated.error === 'path_not_found' ? 404 : 403;
+            return res.status(status).json({ error: validated.error, message: validated.message });
         }
-
-        // Security: Prevent listing directories outside workspace
-        const workspaceRoot = resolve(workspacePath);
-        if (!pathStartsWith(fullPath, workspaceRoot)) {
-            return res.status(403).json({ error: 'Access denied - outside workspace' });
-        }
+        const fullPath = validated.canonicalPath;
+        const workspaceRoot = FileSecurity.getCanonicalWorkspaceRoot(workspacePath);
 
         const stats = statSync(fullPath);
         if (!stats.isDirectory()) {
@@ -2389,18 +2449,14 @@ app.get('/api/files/content', (req, res) => {
             return res.status(400).json({ error: 'Path required' });
         }
 
-        if (!existsSync(filePath)) {
-            return res.status(404).json({ error: 'File not found' });
+        const validated = FileSecurity.validateWorkspacePath(filePath, workspacePath);
+        if (!validated.valid) {
+            const status = validated.error === 'path_not_found' ? 404 : 403;
+            return res.status(status).json({ error: validated.error, message: validated.message });
         }
+        const canonical = validated.canonicalPath;
 
-        // Security: Prevent reading files outside workspace
-        const resolvedPath = resolve(filePath);
-        const workspaceRoot = resolve(workspacePath);
-        if (!pathStartsWith(resolvedPath, workspaceRoot)) {
-            return res.status(403).json({ error: 'Access denied - outside workspace' });
-        }
-
-        const stats = statSync(filePath);
+        const stats = statSync(canonical);
         if (stats.isDirectory()) {
             return res.status(400).json({ error: 'Cannot read directory' });
         }
@@ -2410,17 +2466,17 @@ app.get('/api/files/content', (req, res) => {
             return res.status(400).json({ error: 'File too large (max 1MB)' });
         }
 
-        const ext = extname(filePath).toLowerCase();
-        const textExtensions = ['.txt', '.md', '.js', '.mjs', '.ts', '.json', '.html', '.css', '.py', '.sh', '.bat', '.yml', '.yaml', '.xml', '.csv', '.log', '.env', '.gitignore'];
+        const ext = extname(canonical).toLowerCase();
+        const textExtensions = ['.txt', '.md', '.js', '.mjs', '.ts', '.json', '.html', '.css', '.py', '.sh', '.bat', '.yml', '.yaml', '.xml', '.csv', '.log', '.gitignore'];
 
         if (!textExtensions.includes(ext)) {
             return res.status(400).json({ error: 'Binary file - cannot display', extension: ext });
         }
 
-        const content = readFileSync(filePath, 'utf-8');
+        const content = readFileSync(canonical, 'utf-8');
         res.json({
-            path: filePath,
-            name: basename(filePath),
+            path: canonical,
+            name: basename(canonical),
             extension: ext,
             size: stats.size,
             content
@@ -2441,26 +2497,22 @@ app.post('/api/files/save', (req, res) => {
             return res.status(400).json({ error: 'Content required' });
         }
 
-        // Security: Prevent editing files outside workspace
-        const resolvedPath = resolve(filePath);
-        const workspaceRoot = resolve(workspacePath);
-        if (!pathStartsWith(resolvedPath, workspaceRoot)) {
-            return res.status(403).json({ error: 'Access denied - outside workspace' });
+        const validated = FileSecurity.validateWorkspacePath(filePath, workspacePath);
+        if (!validated.valid) {
+            const status = validated.error === 'path_not_found' ? 404 : 403;
+            return res.status(status).json({ error: validated.error, message: validated.message });
         }
+        const canonical = validated.canonicalPath;
 
-        if (!existsSync(filePath)) {
-            return res.status(404).json({ error: 'File not found' });
-        }
-
-        const ext = extname(filePath).toLowerCase();
-        const textExtensions = ['.txt', '.md', '.js', '.mjs', '.ts', '.json', '.html', '.css', '.py', '.sh', '.bat', '.yml', '.yaml', '.xml', '.csv', '.log', '.env', '.gitignore'];
+        const ext = extname(canonical).toLowerCase();
+        const textExtensions = ['.txt', '.md', '.js', '.mjs', '.ts', '.json', '.html', '.css', '.py', '.sh', '.bat', '.yml', '.yaml', '.xml', '.csv', '.log', '.gitignore'];
 
         if (!textExtensions.includes(ext)) {
             return res.status(400).json({ error: 'Cannot edit binary files' });
         }
 
-        writeFileSync(filePath, content, 'utf-8');
-        res.json({ success: true, path: filePath });
+        writeFileSync(canonical, content, 'utf-8');
+        res.json({ success: true, path: canonical });
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -2474,18 +2526,14 @@ app.get('/api/files/raw', (req, res) => {
             return res.status(400).json({ error: 'Path required' });
         }
 
-        // Security: Prevent accessing files outside workspace
-        const resolvedPath = resolve(filePath);
-        const workspaceRoot = resolve(workspacePath);
-        if (!pathStartsWith(resolvedPath, workspaceRoot)) {
-            return res.status(403).json({ error: 'Access denied - outside workspace' });
+        const validated = FileSecurity.validateWorkspacePath(filePath, workspacePath);
+        if (!validated.valid) {
+            const status = validated.error === 'path_not_found' ? 404 : 403;
+            return res.status(status).json({ error: validated.error, message: validated.message });
         }
+        const canonical = validated.canonicalPath;
 
-        if (!existsSync(filePath)) {
-            return res.status(404).json({ error: 'File not found' });
-        }
-
-        const ext = extname(filePath).toLowerCase();
+        const ext = extname(canonical).toLowerCase();
         const imageExtensions = ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.ico', '.bmp'];
 
         if (!imageExtensions.includes(ext)) {
@@ -2493,7 +2541,7 @@ app.get('/api/files/raw', (req, res) => {
         }
 
         // Limit file size to 10MB
-        const stats = statSync(filePath);
+        const stats = statSync(canonical);
         if (stats.size > 10 * 1024 * 1024) {
             return res.status(400).json({ error: 'Image too large (max 10MB)' });
         }
@@ -2511,7 +2559,7 @@ app.get('/api/files/raw', (req, res) => {
         };
 
         res.set('Content-Type', mimeTypes[ext] || 'application/octet-stream');
-        res.sendFile(resolvedPath);
+        res.sendFile(canonical);
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -2523,16 +2571,16 @@ app.get('/api/files/download', (req, res) => {
         const filePath = req.query.path;
         if (!filePath) return res.status(400).json({ error: 'Path required' });
 
-        const resolvedPath = resolve(filePath);
-        const workspaceRoot = resolve(workspacePath);
-        if (!pathStartsWith(resolvedPath, workspaceRoot)) {
-            return res.status(403).json({ error: 'Access denied - outside workspace' });
+        const validated = FileSecurity.validateWorkspacePath(filePath, workspacePath);
+        if (!validated.valid) {
+            const status = validated.error === 'path_not_found' ? 404 : 403;
+            return res.status(status).json({ error: validated.error, message: validated.message });
         }
-        if (!existsSync(resolvedPath)) return res.status(404).json({ error: 'File not found' });
-        if (statSync(resolvedPath).isDirectory()) {
+        const canonical = validated.canonicalPath;
+        if (statSync(canonical).isDirectory()) {
             return res.status(400).json({ error: 'Path is a folder — use /api/files/download-zip' });
         }
-        res.download(resolvedPath, basename(resolvedPath));
+        res.download(canonical, basename(canonical));
     } catch (e) {
         res.status(500).json({ error: e.message });
     }
@@ -2723,9 +2771,21 @@ app.get('/api/status', async (req, res) => {
 // ============================================================================
 // WebSocket
 // ============================================================================
-wss.on('connection', (ws) => {
+wss.on('connection', (ws, req) => {
     clients.add(ws);
     console.log(`🔌 Client connected. Total: ${clients.size}`);
+
+    if (ws.deviceId) {
+        AuthService.registerActiveSocket(ws.deviceId, ws);
+    }
+
+    try {
+        const url = new URL(req?.url || '/', 'http://localhost');
+        const lastEventId = parseInt(url.searchParams.get('lastEventId') || '0', 10);
+        eventBus.registerClient(ws, lastEventId);
+    } catch (e) {
+        eventBus.registerClient(ws, 0);
+    }
 
     // Send history
     ws.send(JSON.stringify({
@@ -2734,8 +2794,7 @@ wss.on('connection', (ws) => {
         ts: new Date().toISOString()
     }));
 
-    // Paint the latest desktop frame right away (helper streams on-change, so an
-    // idle desktop would otherwise show nothing until the next change).
+    // Paint the latest desktop frame right away
     const latestFrame = HelperBridge.getLatestFrame();
     if (latestFrame) ws.send(latestFrame);
 
@@ -2745,17 +2804,33 @@ wss.on('connection', (ws) => {
             const msg = JSON.parse(data.toString());
 
             if (msg.action === 'inject') {
-                // CDP command injection
-                const result = await CDP.injectAndSubmit(msg.text);
-                ws.send(JSON.stringify({ event: 'inject_result', data: result }));
+                const prompt = msg.text;
+                if (!prompt) {
+                    return ws.send(JSON.stringify({ event: 'error', data: { message: 'text required' } }));
+                }
+
+                const registered = commandLifecycle.registerCommand(prompt, msg.idempotencyKey);
+                if (registered.isDuplicate) {
+                    return ws.send(JSON.stringify({ event: 'inject_result', data: { duplicate: true }, command: registered.command }));
+                }
+
+                commandLifecycle.transition(registered.command.id, commandLifecycle.STATES.ACCEPTED_BY_BRIDGE);
+                try {
+                    commandLifecycle.transition(registered.command.id, commandLifecycle.STATES.DELIVERED_TO_IDE);
+                    const result = await CDP.injectAndSubmit(prompt);
+                    commandLifecycle.transition(registered.command.id, commandLifecycle.STATES.STARTED, { result });
+                    eventBus.publish('command_started', { commandId: registered.command.id, prompt: prompt.slice(0, 100) }, 'observed');
+                    ws.send(JSON.stringify({ event: 'inject_result', data: result, command: registered.command }));
+                } catch (err) {
+                    commandLifecycle.transition(registered.command.id, commandLifecycle.STATES.FAILED, { error: err.message });
+                    eventBus.publish('command_failed', { commandId: registered.command.id, error: err.message }, 'inferred');
+                    ws.send(JSON.stringify({ event: 'error', data: { message: err.message }, command: registered.command }));
+                }
             } else if (msg.action === 'screenshot') {
                 // Request screenshot
                 const base64 = await CDP.captureScreenshot();
                 ws.send(JSON.stringify({ event: 'screenshot', data: { image: base64 } }));
             } else if (msg.action === 'watch_screen') {
-                // The helper streams continuously; just push the latest cached
-                // frame so an idle desktop paints instantly instead of waiting
-                // for the next DXGI change.
                 const latest = HelperBridge.getLatestFrame();
                 if (latest && ws.readyState === WebSocket.OPEN) ws.send(latest);
             }
@@ -2766,6 +2841,7 @@ wss.on('connection', (ws) => {
 
     ws.on('close', () => {
         clients.delete(ws);
+        eventBus.unregisterClient(ws);
         console.log(`🔌 Client disconnected. Total: ${clients.size}`);
     });
 });
@@ -2835,7 +2911,7 @@ async function startServer() {
         }
     }
 
-    httpServer.listen(HTTP_PORT, '0.0.0.0', () => {
+    httpServer.listen(HTTP_PORT, '127.0.0.1', () => {
         console.log(`
 ╔════════════════════════════════════════════════════════╗
 ║       📱 Antigravity Mobile Bridge                     ║
@@ -2928,7 +3004,8 @@ async function startServer() {
             }, app);
 
             const HTTPS_PORT = HTTP_PORT + 443; // 3444 by default
-            httpsServer.listen(HTTPS_PORT, '0.0.0.0', () => {
+            httpsServer.on('upgrade', AuthService.createWebSocketUpgradeHandler(wss));
+            httpsServer.listen(HTTPS_PORT, '127.0.0.1', () => {
                 console.log(`  🔒 HTTPS: https://localhost:${HTTPS_PORT}`);
                 emitEvent('success', `HTTPS server listening on port ${HTTPS_PORT}`);
             });

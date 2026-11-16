@@ -85,8 +85,18 @@ class AppRepository(private val settingsStore: SettingsStore) {
     suspend fun pair(target: ConnectionSettings, code: String, name: String): String? {
         val out = api.pair(target, code, name)
         return if (out.ok && out.token != null) {
-            settingsStore.saveConnection(target)   // make sure the paired host is the saved host
-            settingsStore.saveDeviceToken(out.token)
+            val updatedTarget = target.copy(
+                deviceId = out.deviceId.orEmpty(),
+                accessToken = out.token,
+                refreshToken = out.refreshToken.orEmpty(),
+                deviceToken = out.token
+            )
+            settingsStore.saveConnection(updatedTarget)
+            settingsStore.saveTokens(
+                accessToken = out.token,
+                refreshToken = out.refreshToken.orEmpty(),
+                deviceId = out.deviceId.orEmpty()
+            )
             null
         } else {
             out.detail

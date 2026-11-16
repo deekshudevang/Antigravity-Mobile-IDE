@@ -1,23 +1,30 @@
 package de.xyourp.antigravitymobile.data
 
 /**
- * User-configured connection to the Antigravity Mobile bridge.
- *
- * The bridge multiplexes HTTP and WebSocket on a single port (default 5000), so
- * [restPort] and [wsPort] are usually identical. Both are exposed in Settings to
- * match the documented contract and allow unusual setups.
+ * User-configured connection to the Antigravity Remote bridge.
+ * Supports Tailscale HTTPS, Bearer access tokens, and rotating refresh credentials.
  */
 data class ConnectionSettings(
     val host: String = "",
     val restPort: Int = 5000,
     val wsPort: Int = 5000,
-    /** One-time pairing token issued by the PC; sent as x-device-token. */
+    val useTls: Boolean = false,
+    val deviceId: String = "",
+    val accessToken: String = "",
+    val refreshToken: String = "",
+    /** Legacy alias for accessToken; sent as x-device-token and Bearer. */
     val deviceToken: String = "",
 ) {
     val isConfigured: Boolean get() = host.isNotBlank()
+    val isPaired: Boolean get() = accessToken.isNotBlank() || deviceToken.isNotBlank()
 
-    val restBaseUrl: String get() = "http://$host:$restPort"
-    val wsUrl: String get() = "ws://$host:$wsPort"
+    val effectiveToken: String get() = accessToken.ifBlank { deviceToken }
+
+    val httpScheme: String get() = if (useTls || restPort == 443 || host.endsWith(".ts.net")) "https" else "http"
+    val wsScheme: String get() = if (useTls || wsPort == 443 || host.endsWith(".ts.net")) "wss" else "ws"
+
+    val restBaseUrl: String get() = "$httpScheme://$host:$restPort"
+    val wsUrl: String get() = "$wsScheme://$host:$wsPort"
 
     fun restUrl(path: String): String =
         restBaseUrl + (if (path.startsWith("/")) path else "/$path")
