@@ -38,4 +38,14 @@ test('Filesystem Safety Suite (Section 5.4)', () => {
     const adsCheck = validateWorkspacePath(workspaceRoot, 'package.json:hidden');
     assert.equal(adsCheck.valid, false);
     assert.equal(adsCheck.error, 'alternate_data_stream_rejected');
+
+    // 6. UNC Path rejection
+    const uncCheck = validateWorkspacePath(workspaceRoot, '\\\\attacker-server\\share\\secret.txt');
+    assert.equal(uncCheck.valid, false);
+    assert.equal(uncCheck.error, 'unc_path_rejected');
+
+    // 7. Null byte injection rejection
+    const nullByteCheck = validateWorkspacePath(workspaceRoot, 'package.json\0.exe');
+    assert.equal(nullByteCheck.valid, false);
+    assert.equal(nullByteCheck.error, 'null_byte_rejected');
 });

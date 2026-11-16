@@ -2325,20 +2325,21 @@ app.post('/api/screen/mouse', Pairing.requirePaired, async (req, res) => {
     } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-// Emergency Kill Switch (Phase 14)
-app.post('/api/screen/kill-switch', Pairing.requirePaired, async (req, res) => {
+// Emergency Kill Switch (Phase 14 — Remote Desktop Input Termination)
+app.post('/api/screen/kill-switch', AuthService.requireCapability(AuthService.CAPABILITIES.REMOTE_CONTROL), async (req, res) => {
     try {
+        const triggeredBy = req.authSession?.deviceId || 'authenticated_client';
         AuthService.logSecurityEvent('EMERGENCY_KILL_SWITCH_ENGAGED', {
-            triggeredBy: req.device?.id || 'authenticated_client',
+            triggeredBy,
             timestamp: new Date().toISOString()
         });
-        emitEvent('warning', '🚨 EMERGENCY KILL SWITCH ENGAGED: Halting agent and suspending input injection');
-        eventBus.publish('emergency_kill_switch', { status: 'engaged' }, 'observed');
+        emitEvent('warning', '🚨 EMERGENCY KILL SWITCH ENGAGED: Terminating remote input sessions and dropping queued input');
+        eventBus.publish('emergency_kill_switch', { status: 'engaged', triggeredBy }, 'observed');
 
-        try { await CDP.stopAgent(); } catch (e) { }
+        // Drop all queued input events immediately
         HelperBridge.clearPending();
 
-        res.json({ success: true, message: 'Emergency kill switch activated' });
+        res.json({ success: true, message: 'Emergency input kill switch activated: remote input dropped and sessions terminated' });
     } catch (e) {
         res.status(500).json({ success: false, error: e.message });
     }

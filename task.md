@@ -105,7 +105,7 @@ Transitioning from Stage A to Stage B: Implementing the Secure Vertical Slice (P
 - **Files Created / Modified**:
   - `src/auth-service.mjs` (dual tokens, rotating refresh credentials, token reuse theft detection, rate limiting, RBAC, constant-time checks)
   - `src/pairing-service.mjs` (delegation to AuthService)
-  - `src/file-security.mjs` (canonical realpath, sensitive file deny-list, Windows ADS and reserved name protection)
+  - `src/file-security.mjs` (canonical realpath, sensitive file deny-list, Windows ADS, UNC, and reserved name protection)
   - `src/command-lifecycle.mjs` (FSM: SUBMITTED -> ACCEPTED_BY_BRIDGE -> DELIVERED_TO_IDE -> STARTED -> COMPLETED/FAILED, idempotency key tracking)
   - `src/event-bus.mjs` (monotonic event sequence bus, observed vs inferred labeling, replay buffer)
   - `src/http-server.mjs` (loopback 127.0.0.1 binding, Origin/Host validation, authenticated WS upgrade, secured file routes)
@@ -118,10 +118,10 @@ Transitioning from Stage A to Stage B: Implementing the Secure Vertical Slice (P
   - `test/auth-service.test.mjs`, `test/api-security.test.mjs`, `test/file-security.test.mjs`, `test/pairing-service.test.mjs`
   - `android/app/src/test/java/de/xyourp/antigravitymobile/ConnectionSettingsTest.kt`
 - **Tests Executed**:
-  - `npm test`: 18/18 tests PASSED (duration: 454ms)
-  - `gradlew.bat testDebugUnitTest`: BUILD SUCCESSFUL (24 tasks up-to-date)
-  - `gradlew.bat assembleDebug`: BUILD SUCCESSFUL (61,323,652 bytes APK generated)
-- **Status**: **VERIFIED**
+  - `npm test`: 41/41 tests PASSED (duration: 689ms)
+  - `gradlew.bat testDebugUnitTest`: BUILD SUCCESSFUL
+  - `gradlew.bat assembleDebug`: BUILD SUCCESSFUL (61.8MB APK)
+- **Status**: **READY_FOR_MANUAL_VERIFICATION** (Backend & automated tests verified; physical Keystore verification on mobile hardware pending PM-04)
 
 ### Stage B Exit Criteria Status: READY_FOR_MANUAL_VERIFICATION
 - Phase 03 fully implemented and verified with automated suites.
@@ -135,80 +135,83 @@ Transitioning from Stage A to Stage B: Implementing the Secure Vertical Slice (P
 
 ### Phase 05: Windows Agent Reliability
 - **Objective**: Authenticated Node-to-Helper communication, supervisor bounded restart backoff, health endpoint.
-- **Files Created / Modified**: `src/process-supervisor.mjs`, `src/helper-bridge.mjs`, `src/http-server.mjs`, `test/process-supervisor.test.mjs`.
-- **Tests Executed**: `test/process-supervisor.test.mjs` PASSED (2/2 tests).
-- **Status**: **VERIFIED**
+- **Files Created / Modified**: `src/process-supervisor.mjs`, `src/helper-bridge.mjs`, `src/http-server.mjs`, `test/process-supervisor.test.mjs`, `test/rust-helper-protocol.test.mjs`.
+- **Tests Executed**: `test/process-supervisor.test.mjs` PASSED (2/2 tests), `test/rust-helper-protocol.test.mjs` PASSED (6/6 tests).
+- **Status**: **READY_FOR_MANUAL_VERIFICATION** (MSVC `link.exe` missing on host, blocking native compilation; Node capture fallback active).
 
 ### Phase 06: Antigravity IDE Integration
-- **Objective**: DOM selector isolation in `antigravity-dom.mjs`, version fingerprint check, mock CDP fixtures.
+- **Objective**: DOM selector isolation in `antigravity-dom.mjs`, version fingerprint check, live CDP discovery.
 - **Files Created / Modified**: `src/antigravity-dom.mjs`, `src/cdp-client.mjs`, `src/http-server.mjs`, `test/antigravity-dom.test.mjs`.
-- **Tests Executed**: `test/antigravity-dom.test.mjs` PASSED (6/6 tests).
-- **Status**: **VERIFIED**
+- **Tests Executed**: `test/antigravity-dom.test.mjs` PASSED (6/6 tests), `node scripts/cdp-probe.mjs 9222 find-chat` connected to live IDE iframe target (`D5CB8CAA806A4CB1C145F551C95840E1`).
+- **Status**: **READY_FOR_MANUAL_VERIFICATION** (PM-01 probe verified live connection; end-to-end prompt delivery acceptance test PM-03 pending).
 
 ### Phase 07: Live Monitoring Engine
-- **Objective**: Monotonic event sequence bus, observed vs inferred labeling, WebSocket auth.
+- **Objective**: Monotonic event sequence bus, observed vs inferred labeling, WebSocket auth and replay.
 - **Files Created / Modified**: `src/event-bus.mjs`, `src/http-server.mjs`, `test/api-security.test.mjs`.
-- **Tests Executed**: `test/api-security.test.mjs` PASSED (9/9 tests).
-- **Status**: **VERIFIED**
+- **Tests Executed**: `test/api-security.test.mjs` PASSED (14/14 tests).
+- **Status**: **COMPLETED** (Replay buffer & sequence logic tested; real phone streaming unverified).
 
 ### Phase 08: Remote AI Control
 - **Objective**: Explicit prompt lifecycle state machine (`SUBMITTED` -> `ACCEPTED_BY_BRIDGE` -> `DELIVERED_TO_IDE` -> `STARTED` -> `COMPLETED`/`FAILED`), idempotency key tracking, approval response and cancellation.
 - **Files Created / Modified**: `src/command-lifecycle.mjs`, `src/cdp-client.mjs`, `src/http-server.mjs`, `android/.../ApiClient.kt`, `android/.../ChatViewModel.kt`.
 - **Tests Executed**: Automated idempotency and state machine tests in `test/api-security.test.mjs` PASSED.
-- **Status**: **VERIFIED**
+- **Status**: **READY_FOR_MANUAL_VERIFICATION** (Acceptance test PM-03 pending).
 
 ### Phase 09: Android Dashboard
 - **Objective**: Material 3 dashboard, 4-state connection cards, activity feed, quota summary.
 - **Files Created / Modified**: `android/.../MainScaffold.kt`, `android/.../SessionViewModel.kt`, `docs/DESIGN_SYSTEM.md`.
 - **Tests Executed**: `gradlew.bat assembleDebug` PASSED (APK 61.8MB).
-- **Status**: **VERIFIED**
+- **Status**: **COMPLETED** (Code compiled; physical phone visual verification pending).
 
 ### Phase 10: Conversation and Prompt Interface
 - **Objective**: Real-time chat mirror, prompt composer with lifecycle indicators, approval handling.
 - **Files Created / Modified**: `android/.../ChatScreen.kt`, `android/.../ChatViewModel.kt`, `android/.../ApiClient.kt`.
 - **Tests Executed**: `gradlew.bat assembleDebug` PASSED.
-- **Status**: **VERIFIED**
+- **Status**: **COMPLETED** (Code compiled; physical phone interaction pending).
 
 ### Phase 11: Project and Code Explorer
 - **Objective**: Canonical `realpath` file tree, sensitive file deny-list, git diff and stage.
 - **Files Created / Modified**: `src/file-security.mjs`, `src/http-server.mjs`, `test/file-security.test.mjs`, `android/.../FilesScreen.kt`, `android/.../GitScreen.kt`.
 - **Tests Executed**: `test/file-security.test.mjs` PASSED.
-- **Status**: **VERIFIED**
+- **Status**: **READY_FOR_MANUAL_VERIFICATION** (Backend security verified; Android UI interaction pending).
 
 ### Phase 12: Task and Phase Monitoring
 - **Objective**: Incremental `task.md` parser and tracking screen.
 - **Files Created / Modified**: `src/task-parser.mjs`, `src/http-server.mjs`, `android/.../ApiClient.kt`, `android/.../ApiModels.kt`, `test/task-parser.test.mjs`.
 - **Tests Executed**: `test/task-parser.test.mjs` PASSED (2/2 tests).
-- **Status**: **VERIFIED**
+- **Status**: **READY_FOR_MANUAL_VERIFICATION** (Backend parser verified; Android task screen pending).
 
 ### Phase 13: Terminal and Build Monitoring
 - **Objective**: Observe-only terminal process output stream and system status reporting.
 - **Files Created / Modified**: `src/http-server.mjs` (`/health`, `/api/status`), `src/process-supervisor.mjs`.
-- **Status**: **VERIFIED**
+- **Tests Executed**: `test/process-supervisor.test.mjs` PASSED.
+- **Status**: **COMPLETED** (Observe-only telemetry implemented; live terminal stream unverified on phone).
 
 ### Phase 14: Full Remote Desktop
-- **Objective**: Desktop screen streaming, bounded frame queue, authenticated input injection, emergency kill switch.
+- **Objective**: Desktop screen streaming, bounded frame queue, authenticated input injection, emergency input kill switch.
 - **Files Created / Modified**: `src/helper-bridge.mjs`, `src/http-server.mjs` (`/api/screen/kill-switch`).
-- **Status**: **VERIFIED**
+- **Tests Executed**: `test/rust-helper-protocol.test.mjs` PASSED (6/6 tests).
+- **Status**: **COMPLETED** (Emergency input kill switch and input queue implemented; Rust helper uncompiled; Android canvas unverified).
 
 ### Phase 15: Notifications
 - **Objective**: Local Android foreground service notification engine.
 - **Files Created / Modified**: `android/.../AgentMonitor.kt`, `android/.../AgentActionReceiver.kt`, `android/.../MainActivity.kt`.
-- **Status**: **VERIFIED**
+- **Tests Executed**: `gradlew.bat assembleDebug` PASSED.
+- **Status**: **COMPLETED** (Code compiled; Android 13+ runtime notification unverified).
 
 ### Phase 16: Multi-Project and Multi-Device
 - **Objective**: Per-device capability assignment, project isolation, instant revocation.
 - **Files Created / Modified**: `src/auth-service.mjs`, `src/http-server.mjs` (`/api/auth/revoke`).
-- **Tests Executed**: `test/auth-service.test.mjs` PASSED.
-- **Status**: **VERIFIED**
+- **Tests Executed**: `test/api-security.test.mjs` PASSED.
+- **Status**: **READY_FOR_MANUAL_VERIFICATION** (Backend revocation verified; multi-device UI unverified).
 
 ### Phase 17: Full QA and Security Audit
 - **Objective**: End-to-end automated testing, security vulnerability verification.
 - **Tests Executed**:
-  - `npm test`: 31/31 unit & security tests PASSED in 489ms.
-  - `gradlew.bat testDebugUnitTest`: BUILD SUCCESSFUL.
+  - `npm test`: 41/41 unit & security tests PASSED in 689ms.
+  - `gradlew.bat testDebugUnitTest`: BUILD SUCCESSFUL (ConnectionSettingsTest + ApiModelsSerializationTest).
   - `gradlew.bat assembleDebug`: BUILD SUCCESSFUL (61.8MB APK).
-- **Status**: **VERIFIED**
+- **Status**: **READY_FOR_MANUAL_VERIFICATION** (Automated suites green; physical device and real-network acceptance tests pending).
 
 ### Phase 18: Production Release
 - **Objective**: Production artifacts, Windows installer scripts, release documentation, remote repository synchronization.
@@ -217,7 +220,4 @@ Transitioning from Stage A to Stage B: Implementing the Secure Vertical Slice (P
   - `scripts/start-bridge.bat`
   - `scripts/Stop-Antigravity-Mobile.bat`
   - `android/app/build/outputs/apk/debug/app-debug.apk` (61.8MB)
-- **Remote Repository**:
-  - Pushed to `https://github.com/deekshudevang/Antigravity-Mobile-IDE.git`
-  - Branches pushed: `main` and `feature/antigravity-remote-upgrade`
-- **Status**: **VERIFIED**
+- **Status**: **BUILD_SUCCESS** (Debug APK compiled; release keystore signing and physical installation pending).

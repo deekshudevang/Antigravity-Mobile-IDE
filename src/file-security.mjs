@@ -46,6 +46,16 @@ export function validateWorkspacePath(workspaceRoot, requestedPath, allowNonExis
         return { valid: false, error: 'missing_path_parameters' };
     }
 
+    // Reject null byte injection
+    if (requestedPath.includes('\0')) {
+        return { valid: false, error: 'null_byte_rejected' };
+    }
+
+    // Reject UNC network paths (\\server\share or //server/share)
+    if (/^[\\/]{2}/.test(requestedPath)) {
+        return { valid: false, error: 'unc_path_rejected' };
+    }
+
     // Reject Alternate Data Streams (e.g. file.txt:hidden)
     if (requestedPath.includes(':') && !/^[a-zA-Z]:[\\/]/.test(requestedPath)) {
         return { valid: false, error: 'alternate_data_stream_rejected' };

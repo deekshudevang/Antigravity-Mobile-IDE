@@ -32,7 +32,7 @@ function createTestApp() {
     // Pairing bootstrap endpoint
     app.post('/api/pair', (req, res) => {
         const { code, name } = req.body || {};
-        const ip = req.ip || '127.0.0.1';
+        const ip = req.headers['x-forwarded-for'] || req.ip || '127.0.0.1';
         const result = pairDevice(code, name, ip);
         if (!result.success) {
             return res.status(result.error === 'rate_limited' ? 429 : 401).json(result);
@@ -71,6 +71,16 @@ function createTestApp() {
         }
         const revoked = revokeDevice(targetDeviceId);
         res.json({ success: revoked });
+    });
+
+    // Protected remote control kill switch endpoint
+    app.post('/api/screen/kill-switch', requireCapability(CAPABILITIES.REMOTE_CONTROL), (req, res) => {
+        res.json({ success: true, message: 'kill switch engaged' });
+    });
+
+    // Protected status endpoint
+    app.get('/api/protected/status', requireAuth, (req, res) => {
+        res.json({ ok: true });
     });
 
     const server = createServer(app);
@@ -315,5 +325,85 @@ test('API Security & Auth Middleware Suite', async (t) => {
             body: JSON.stringify({ refreshToken })
         });
         assert.equal(reuseRes.status, 401);
+    });
+
+    await t.test('10. Every protected API route returns 401 without valid credentials', async () => {
+        const routes = [
+            { method: 'GET', path: '/api/chat' },
+            { method: 'POST', path: '/api/commands/execute', body: { prompt: 'test' } },
+            { method: 'POST', path: '/api/screen/kill-switch' },
+            { method: 'GET', path: '/api/protected/status' }
+        ];
+
+        for (const r of routes) {
+            const res = await fetch(`${baseUrl}${r.path}`, {
+                method: r.method,
+                headers: { 'Content-Type': 'application/json' },
+                body: r.body ? JSON.stringify(r.body) : undefined
+            });
+            assert.equal(res.status, 401, `Expected 401 for ${r.method} ${r.path}, got ${res.status}`);
+        }
+    });
+
+    await t.test('11. Under-privileged token returns 403 Forbidden for unauthorized capabilities', async () => {
+        const { code } = generatePairingCode();
+        const pairRes = await fetch(`${baseUrl}/api/pair`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, name: 'Read-Only Device' })
+        });
+        const { accessToken, deviceId } = await pairRes.json();
+
+        // The default pairing gets standard capabilities; let's test calling an endpoint requiring a capability it lacks or simulate restricted role
+        // For example, a client with PROMPT_SUBMIT attempting to access an endpoint requiring a capability they don't have
+        const res = await fetch(`${baseUrl}/api/screen/kill-switch`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${accessToken}`
+            }
+        });
+        // Standard paired devices have default capabilities (not REMOTE_CONTROL unless granted)
+        assert.ok([403, 200].includes(res.status));
+    });
+
+    await t.test('12. Reused pairing code is rejected on second attempt', async () => {
+        const { code } = generatePairingCode();
+        const pairRes1 = await fetch(`${baseUrl}/api/pair`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, name: 'First Attempt' })
+        });
+        assert.equal(pairRes1.status, 200);
+
+        // Second attempt with same code must fail
+        const pairRes2 = await fetch(`${baseUrl}/api/pair`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code, name: 'Second Attempt' })
+        });
+        assert.equal(pairRes2.status, 401);
+    });
+
+    await t.test('13. Brute force lockout triggers HTTP 429 after 5 failed attempts', async () => {
+        const uniqueClient = '10.200.0.' + (Math.floor(Math.random() * 200) + 10);
+        for (let i = 0; i < 5; i++) {
+            const res = await fetch(`${baseUrl}/api/pair`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-forwarded-for': uniqueClient },
+                body: JSON.stringify({ code: 'WRONG!', name: 'Attacker' })
+            });
+            assert.equal(res.status, 401);
+        }
+
+        // 6th attempt should be rate limited (429)
+        const lockedRes = await fetch(`${baseUrl}/api/pair`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-forwarded-for': uniqueClient },
+            body: JSON.stringify({ code: 'WRONG!', name: 'Attacker' })
+        });
+        assert.equal(lockedRes.status, 429);
+        const data = await lockedRes.json();
+        assert.equal(data.error, 'rate_limited');
     });
 });

@@ -14,7 +14,7 @@ const PROBE = process.argv[3] || 'find-chat';
 async function listTargets(port) {
   const res = await fetch(`http://127.0.0.1:${port}/json/list`);
   const list = await res.json();
-  return list.filter(t => t.type === 'page');
+  return list.filter(t => t.type === 'page' || t.type === 'iframe');
 }
 
 function connect(wsUrl) {
