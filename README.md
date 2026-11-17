@@ -39,8 +39,8 @@ Mobile dashboard, native Android app, and full remote control for [Antigravity I
 **Platform support:** developed and tested on **Windows 11**. The desktop helper (screen streaming + remote input) and quota monitoring are currently Windows-only; the dashboard, chat, files, and Git features of the bridge should work on macOS/Linux but are untested there.
 
 ```bash
-git clone https://github.com/AvenalJ/AntigravityMobile.git
-cd AntigravityMobile
+git clone https://github.com/deekshudevang/Antigravity-Mobile-IDE.git
+cd Antigravity-Mobile-IDE
 npm install
 node src/http-server.mjs
 ```
@@ -177,14 +177,19 @@ For debug output, run the server directly:
 node src/http-server.mjs 2>&1 | tee server.log
 ```
 
+## Authors & Credits
+
+- **Author & Developer**: [deekshudevang](https://github.com/deekshudevang)
+- **Support & Upstream Foundation**: [Avenal J](https://github.com/AvenalJ/AntigravityMobile)
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
-Original work © AvenalJ; Android companion app, desktop helper, and related modifications © XyourP Websolution UG (haftungsbeschränkt).
+Copyright (c) 2026 deekshudevang. Support and original foundation by Avenal J (AvenalJ); Android companion app, desktop helper, and related modifications © XyourP Websolution UG (haftungsbeschränkt).
 
 ## Acknowledgments
 
-- Original project by [AvenalJ](https://github.com/AvenalJ/AntigravityMobile)
+- Support & upstream project by [AvenalJ](https://github.com/AvenalJ/AntigravityMobile)
 - Desktop capture/input built on the MIT-licensed [`scrap`](https://crates.io/crates/scrap) and [`enigo`](https://crates.io/crates/enigo) crates (as used by RustDesk)
 - Inspired by [Antigravity-Shit-Chat](https://github.com/gherghett/Antigravity-Shit-Chat) by gherghett
 - Quota monitoring inspired by [Antigravity Cockpit](https://marketplace.visualstudio.com/items?itemName=jlcodes.antigravity-cockpit)

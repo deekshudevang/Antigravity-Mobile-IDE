@@ -174,7 +174,7 @@ export async function initBot(config) {
             bot.sendMessage(msg.chat.id,
                 `✅ *Antigravity Mobile Bot Active*\n\n` +
                 `Your Chat ID: \`${msg.chat.id}\`\n\n` +
-                `🔗 [GitHub](https://github.com/AvenalJ/AntigravityMobile)\n\n` +
+                `🔗 [GitHub](https://github.com/deekshudevang/Antigravity-Mobile-IDE)\n\n` +
                 `Type /help for available commands.`,
                 { parse_mode: 'Markdown' }
             );
