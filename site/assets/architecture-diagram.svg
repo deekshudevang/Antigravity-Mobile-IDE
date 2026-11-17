@@ -1,0 +1,63 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 480" width="100%" height="auto" fill="none">
+  <defs>
+    <style>
+      .title { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; font-size: 16px; font-weight: 600; fill: #F1F5F9; }
+      .sub { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; font-size: 12px; fill: #94A3B8; }
+      .box-bg { fill: #111827; stroke: #334155; stroke-width: 1.5; rx: 8px; }
+      .highlight { stroke: #00E5FF; stroke-width: 2; fill: #0B132B; }
+      .conn { stroke: #38BDF8; stroke-width: 2; stroke-dasharray: 6 4; }
+      .arrow { fill: #38BDF8; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="960" height="480" fill="#090D16" rx="12"/>
+
+  <!-- Left: Host System -->
+  <rect x="40" y="40" width="380" height="400" rx="12" fill="#0F172A" stroke="#1E293B" stroke-width="2"/>
+  <text x="60" y="70" class="title">Windows 11 Host Machine</text>
+  <text x="60" y="90" class="sub">Local Workstation / Private Boundary</text>
+
+  <!-- Antigravity IDE Box -->
+  <rect x="60" y="110" width="340" height="90" class="box-bg"/>
+  <text x="80" y="145" class="title">Google Antigravity IDE 2.x</text>
+  <text x="80" y="170" class="sub">Chat Webview (extensionView=true) &amp; CDP (Port 9222)</text>
+
+  <!-- Node.js Bridge Box -->
+  <rect x="60" y="230" width="340" height="180" class="highlight"/>
+  <text x="80" y="260" class="title" fill="#00E5FF">Node.js Desktop Bridge (:5000)</text>
+  <text x="80" y="285" class="sub">• Loopback Isolation (127.0.0.1:5000 only)</text>
+  <text x="80" y="310" class="sub">• SEC-06 Admin Token &amp; Timing-safe Auth</text>
+  <text x="80" y="335" class="sub">• Realpath Workspace Defense &amp; Deny-list</text>
+  <text x="80" y="360" class="sub">• CDP Screencast &amp; WebSocket Stream Relay</text>
+  <text x="80" y="385" class="sub">• Emergency Kill Switch Disengagement</text>
+
+  <!-- Center: Encrypted Transport -->
+  <rect x="440" y="180" width="160" height="120" rx="10" fill="#1E293B" stroke="#00E5FF" stroke-width="1.5"/>
+  <text x="460" y="225" class="title" fill="#00E5FF">Tailscale</text>
+  <text x="460" y="250" class="sub">Peer-to-Peer</text>
+  <text x="460" y="270" class="sub">WireGuard Mesh</text>
+
+  <!-- Connections -->
+  <line x1="230" y1="200" x2="230" y2="230" stroke="#00E5FF" stroke-width="2"/>
+  <line x1="400" y1="290" x2="440" y2="240" class="conn"/>
+  <line x1="600" y1="240" x2="640" y2="290" class="conn"/>
+
+  <!-- Right: Android Mobile Device -->
+  <rect x="620" y="40" width="300" height="400" rx="12" fill="#0F172A" stroke="#1E293B" stroke-width="2"/>
+  <text x="640" y="70" class="title">Android Companion App</text>
+  <text x="640" y="90" class="sub">API 29+ (Verified on Android 14)</text>
+
+  <rect x="640" y="120" width="260" height="150" class="box-bg"/>
+  <text x="660" y="150" class="title">Jetpack Compose UI</text>
+  <text x="660" y="175" class="sub">• Live Chat Turn Mirroring</text>
+  <text x="660" y="200" class="sub">• Interactive Approval Cards</text>
+  <text x="660" y="225" class="sub">• Remote Desktop Canvas</text>
+  <text x="660" y="250" class="sub">• Workspace &amp; Git Inspector</text>
+
+  <rect x="640" y="290" width="260" height="120" class="box-bg"/>
+  <text x="660" y="325" class="title">Hardware Keystore</text>
+  <text x="660" y="350" class="sub">• AES-256-GCM Hardware Storage</text>
+  <text x="660" y="375" class="sub">• Rotating Refresh Tokens</text>
+  <text x="660" y="400" class="sub">• Anti-theft Reuse Revocation</text>
+</svg>

@@ -38,6 +38,7 @@ export const CAPABILITIES = {
     PROMPT_SUBMIT: 'prompt.submit',
     APPROVAL_RESPOND: 'approval.respond',
     FILES_WRITE: 'files.write',
+    GIT_READ: 'git.read',
     GIT_WRITE: 'git.write',
     TASKS_WRITE: 'tasks.write',
     SCREEN_VIEW: 'screen.view',
@@ -53,6 +54,7 @@ export const ROLE_BUNDLES = {
         CAPABILITIES.STATUS_READ,
         CAPABILITIES.CONVERSATION_READ,
         CAPABILITIES.FILES_READ,
+        CAPABILITIES.GIT_READ,
         CAPABILITIES.LOGS_READ,
         CAPABILITIES.TASKS_READ,
         CAPABILITIES.PROCESS_OBSERVE
@@ -61,6 +63,7 @@ export const ROLE_BUNDLES = {
         CAPABILITIES.STATUS_READ,
         CAPABILITIES.CONVERSATION_READ,
         CAPABILITIES.FILES_READ,
+        CAPABILITIES.GIT_READ,
         CAPABILITIES.LOGS_READ,
         CAPABILITIES.TASKS_READ,
         CAPABILITIES.PROCESS_OBSERVE,
@@ -89,6 +92,7 @@ const DEFAULT_PAIRED_CAPABILITIES = [
     CAPABILITIES.PROMPT_SUBMIT,
     CAPABILITIES.APPROVAL_RESPOND,
     CAPABILITIES.FILES_READ,
+    CAPABILITIES.GIT_READ,
     CAPABILITIES.TASKS_READ,
     CAPABILITIES.SCREEN_VIEW,
     CAPABILITIES.SCREEN_INPUT
@@ -401,6 +405,15 @@ export function listPairedDevices() {
         capabilities: d.capabilities,
         activeTokenCount: d.accessTokens.filter(t => t.expiresAt > Date.now()).length
     }));
+}
+
+export function updateDeviceCapabilities(deviceId, capabilities) {
+    if (state.devices[deviceId]) {
+        state.devices[deviceId].capabilities = [...capabilities];
+        saveState();
+        return true;
+    }
+    return false;
 }
 
 // --- 6. Active WebSocket Management ---

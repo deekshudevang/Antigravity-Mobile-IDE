@@ -8,7 +8,7 @@
  */
 
 import { realpathSync, existsSync, statSync } from 'fs';
-import { resolve, normalize, basename, dirname } from 'path';
+import { resolve, normalize, basename, dirname, isAbsolute } from 'path';
 
 // Windows reserved device names (CON, PRN, AUX, NUL, COM1-9, LPT1-9)
 const RESERVED_NAMES = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?$/i;
@@ -58,37 +58,58 @@ export function validateWorkspacePath(workspaceRoot, requestedPath, allowNonExis
         return { valid: false, error: 'missing_path_parameters' };
     }
 
+    // Decode URL-encoded traversal and characters
+    let decoded = requestedPath;
+    try {
+        decoded = decodeURIComponent(requestedPath);
+    } catch {
+        return { valid: false, error: 'malformed_url_encoding' };
+    }
+
     // Reject null byte injection
-    if (requestedPath.includes('\0')) {
+    if (requestedPath.includes('\0') || decoded.includes('\0')) {
         return { valid: false, error: 'null_byte_rejected' };
     }
 
     // Reject UNC network paths (\\server\share or //server/share)
-    if (/^[\\/]{2}/.test(requestedPath)) {
+    if (/^[\\/]{2}/.test(decoded)) {
         return { valid: false, error: 'unc_path_rejected' };
     }
 
     // Reject Alternate Data Streams (e.g. file.txt:hidden)
-    if (requestedPath.includes(':') && !/^[a-zA-Z]:[\\/]/.test(requestedPath)) {
+    if (decoded.includes(':') && !/^[a-zA-Z]:[\\/]/.test(decoded)) {
         return { valid: false, error: 'alternate_data_stream_rejected' };
     }
 
     // Reject Windows reserved device names
-    const base = basename(requestedPath);
+    const base = basename(decoded);
     if (RESERVED_NAMES.test(base)) {
         return { valid: false, error: 'reserved_device_name_rejected' };
     }
 
     // Check sensitive file deny-list
-    if (isSensitiveFile(requestedPath)) {
+    if (isSensitiveFile(decoded)) {
         return { valid: false, error: 'sensitive_file_access_denied' };
     }
 
     try {
         // Canonicalize workspace root
         const canonicalRoot = realpathSync(resolve(workspaceRoot));
+        const rootLower = canonicalRoot.toLowerCase();
 
-        let targetToResolve = resolve(requestedPath);
+        // Resolve target against workspace root (never process.cwd())
+        const targetToResolve = isAbsolute(decoded) ? resolve(decoded) : resolve(workspaceRoot, decoded);
+        const resolvedLower = targetToResolve.toLowerCase();
+
+        // 1. Lexical traversal check: must not resolve outside workspaceRoot
+        const isLexicallyInside = resolvedLower === rootLower ||
+            resolvedLower.startsWith(rootLower + '\\') ||
+            resolvedLower.startsWith(rootLower + '/');
+
+        if (!isLexicallyInside) {
+            return { valid: false, error: 'path_outside_workspace' };
+        }
+
         if (!existsSync(targetToResolve)) {
             if (!allowNonExistent) {
                 return { valid: false, error: 'path_not_found' };
@@ -99,21 +120,17 @@ export function validateWorkspacePath(workspaceRoot, requestedPath, allowNonExis
                 return { valid: false, error: 'parent_directory_not_found' };
             }
             const canonicalParent = realpathSync(parentDir);
-            const isInside = canonicalParent.toLowerCase().startsWith(canonicalRoot.toLowerCase());
+            const isInside = canonicalParent.toLowerCase().startsWith(rootLower);
             if (!isInside) {
                 return { valid: false, error: 'path_outside_workspace' };
             }
             return { valid: true, canonicalPath: resolve(canonicalParent, basename(targetToResolve)) };
         }
 
-        // Target exists: resolve its real path
+        // 2. Symlink/Junction check: canonical real path must strictly stay within canonicalRoot
         const canonicalTarget = realpathSync(targetToResolve);
-
-        // Verify that target begins with canonicalRoot
-        const rootLower = canonicalRoot.toLowerCase();
         const targetLower = canonicalTarget.toLowerCase();
 
-        // Exact match (workspace root itself) or child item with path separator
         const isChild = targetLower === rootLower ||
             targetLower.startsWith(rootLower + '\\') ||
             targetLower.startsWith(rootLower + '/');

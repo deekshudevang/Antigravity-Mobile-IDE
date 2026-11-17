@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 640" width="1280" height="640" fill="none">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B0F19"/>
+      <stop offset="100%" stop-color="#030712"/>
+    </linearGradient>
+    <linearGradient id="cyanGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00E5FF"/>
+      <stop offset="100%" stop-color="#0284C7"/>
+    </linearGradient>
+    <style>
+      .brand { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; font-size: 52px; font-weight: 800; fill: #F8FAFC; letter-spacing: -1px; }
+      .tagline { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 26px; font-weight: 400; fill: #94A3B8; }
+      .pill { font-family: monospace; font-size: 14px; font-weight: 600; fill: #00E5FF; }
+      .notice { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 14px; fill: #64748B; }
+    </style>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  
+  <!-- Subtle geometric grid pattern -->
+  <circle cx="1100" cy="200" r="400" stroke="#1E293B" stroke-width="1.5" stroke-dasharray="10 10" opacity="0.4"/>
+  <circle cx="1100" cy="200" r="250" stroke="#00E5FF" stroke-width="1" stroke-dasharray="6 6" opacity="0.3"/>
+
+  <!-- Brand badge -->
+  <rect x="80" y="80" width="220" height="36" rx="18" fill="#0C1F2D" stroke="#00E5FF" stroke-width="1.5"/>
+  <text x="100" y="103" class="pill">UNOFFICIAL COMPANION</text>
+
+  <!-- Title & Tagline -->
+  <text x="80" y="180" class="brand">Antigravity Mobile IDE</text>
+  <text x="80" y="230" class="tagline">Calm, precise mobile control &amp; live monitoring for</text>
+  <text x="80" y="268" class="tagline">autonomous Antigravity coding workflows.</text>
+
+  <!-- Feature Highlights -->
+  <g transform="translate(80, 330)">
+    <!-- Item 1 -->
+    <rect x="0" y="0" width="280" height="70" rx="8" fill="#111827" stroke="#1F2937" stroke-width="1.5"/>
+    <text x="20" y="32" font-family="sans-serif" font-size="16px" font-weight="600" fill="#F1F5F9">Real-time Turn Streaming</text>
+    <text x="20" y="52" font-family="sans-serif" font-size="13px" fill="#94A3B8">WebSocket DOM turns &amp; approvals</text>
+
+    <!-- Item 2 -->
+    <rect x="300" y="0" width="280" height="70" rx="8" fill="#111827" stroke="#1F2937" stroke-width="1.5"/>
+    <text x="320" y="32" font-family="sans-serif" font-size="16px" font-weight="600" fill="#F1F5F9">Zero-Cloud Tailscale Mesh</text>
+    <text x="320" y="52" font-family="sans-serif" font-size="13px" fill="#94A3B8">Peer-to-peer WireGuard security</text>
+
+    <!-- Item 3 -->
+    <rect x="600" y="0" width="280" height="70" rx="8" fill="#111827" stroke="#1F2937" stroke-width="1.5"/>
+    <text x="620" y="32" font-family="sans-serif" font-size="16px" font-weight="600" fill="#F1F5F9">Hardware Keystore Auth</text>
+    <text x="620" y="52" font-family="sans-serif" font-size="13px" fill="#94A3B8">Dual-token anti-theft rotation</text>
+  </g>
+
+  <!-- Bottom Disclaimer -->
+  <text x="80" y="560" class="notice">Open-source community project. Not affiliated with, endorsed by, or sponsored by Google.</text>
+  <text x="80" y="585" class="notice">Android is a trademark of Google LLC. Source code: github.com/deekshudevang/Antigravity-Mobile-IDE</text>
+
+  <!-- Device Mockup Graphic on the right -->
+  <g transform="translate(980, 100)">
+    <rect x="0" y="0" width="220" height="420" rx="28" fill="#111827" stroke="#334155" stroke-width="4"/>
+    <rect x="12" y="24" width="196" height="360" rx="16" fill="#090D16"/>
+    <circle cx="110" cy="50" r="16" fill="#00E5FF" opacity="0.2"/>
+    <circle cx="110" cy="50" r="6" fill="#00E5FF"/>
+    <rect x="30" y="90" width="160" height="40" rx="6" fill="#1E293B"/>
+    <rect x="30" y="145" width="160" height="180" rx="6" fill="#1E293B" opacity="0.6"/>
+  </g>
+</svg>

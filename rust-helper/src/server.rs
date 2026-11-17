@@ -33,6 +33,8 @@ pub struct Hub {
     pub width: u32,
     pub height: u32,
     pub monitor: usize,
+    /// Shared authentication secret passed via environment variable.
+    pub secret: String,
 }
 
 impl Hub {
@@ -48,6 +50,7 @@ impl Hub {
             width: 0,
             height: 0,
             monitor: 0,
+            secret: String::new(),
         }
     }
 }
@@ -72,7 +75,32 @@ async fn serve_client(stream: TcpStream, hub: Hub) -> anyhow_lite::Result {
         .await
         .map_err(|e| e.to_string())?;
     let (mut sink, mut source) = ws.split();
-    log::info!("Node connected to helper");
+
+    // Authenticate first message presenting secret in constant-time
+    let auth_msg = match source.next().await {
+        Some(Ok(Message::Text(txt))) => {
+            if txt.len() > 65536 {
+                return Err("Auth frame exceeded 64KB limit".to_string());
+            }
+            serde_json::from_str::<InputCommand>(&txt).map_err(|e| e.to_string())?
+        }
+        _ => return Err("Connection closed before auth handshake".to_string()),
+    };
+
+    match auth_msg {
+        InputCommand::Auth { secret } => {
+            if !constant_time_eq(secret.as_bytes(), hub.secret.as_bytes()) {
+                log::warn!("Unauthorized helper connection attempt rejected: secret mismatch");
+                return Err("Unauthorized".to_string());
+            }
+        }
+        _ => {
+            log::warn!("First helper frame was not an Auth command");
+            return Err("Expected Auth handshake command".to_string());
+        }
+    }
+
+    log::info!("Node successfully authenticated with desktop-helper");
 
     // Greet with capture geometry + pairing state (pairing fills in Phase 6).
     let hello = HelperEvent::Hello {
@@ -85,6 +113,7 @@ async fn serve_client(stream: TcpStream, hub: Hub) -> anyhow_lite::Result {
     sink.send(Message::Text(hello)).await.map_err(|e| e.to_string())?;
 
     let mut frames = hub.frames_tx.subscribe();
+    let mut last_seq = 0u64;
 
     loop {
         tokio::select! {
@@ -104,14 +133,34 @@ async fn serve_client(stream: TcpStream, hub: Hub) -> anyhow_lite::Result {
             // Inbound: JSON input commands from Node.
             msg = source.next() => match msg {
                 Some(Ok(Message::Text(txt))) => {
+                    // Maximum payload size limit per Section 5.5: 64KB (65536 bytes)
+                    if txt.len() > 65536 {
+                        log::warn!("Payload exceeded 64KB limit, dropping client");
+                        break;
+                    }
+
                     match serde_json::from_str::<InputCommand>(&txt) {
-                        // Video is a stream-control command — toggle the encoder
-                        // flag here instead of routing it to the input executor.
-                        Ok(InputCommand::Video { codec }) => {
-                            hub.h264.store(codec == "h264", Ordering::Relaxed);
-                            log::info!("video codec set to {codec}");
+                        Ok(cmd) => {
+                            // Enforce monotonic sequence numbers: reject seq <= last_seq (replay attack)
+                            if let Some(seq) = cmd.seq() {
+                                if seq <= last_seq {
+                                    log::warn!("Replay detected: sequence {seq} <= last {last_seq}");
+                                    break;
+                                }
+                                last_seq = seq;
+                            }
+
+                            // Video is a stream-control command — toggle the encoder
+                            // flag here instead of routing it to the input executor.
+                            match cmd {
+                                InputCommand::Video { codec, .. } => {
+                                    hub.h264.store(codec == "h264", Ordering::Relaxed);
+                                    log::info!("video codec set to {codec}");
+                                }
+                                InputCommand::Auth { .. } => {}
+                                other => { let _ = hub.input_tx.send(other); }
+                            }
                         }
-                        Ok(cmd) => { let _ = hub.input_tx.send(cmd); }
                         Err(e) => log::warn!("bad input command: {e}: {txt}"),
                     }
                 }
@@ -123,6 +172,18 @@ async fn serve_client(stream: TcpStream, hub: Hub) -> anyhow_lite::Result {
     }
     log::info!("Node disconnected from helper");
     Ok(())
+}
+
+/// Constant-time slice comparison preventing timing side-channel attacks
+fn constant_time_eq(a: &[u8], b: &[u8]) -> bool {
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut diff = 0u8;
+    for (x, y) in a.iter().zip(b.iter()) {
+        diff |= x ^ y;
+    }
+    diff == 0
 }
 
 /// Tiny local error alias so we don't pull in the full `anyhow` crate yet.

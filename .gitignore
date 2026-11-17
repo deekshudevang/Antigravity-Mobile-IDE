@@ -7,6 +7,7 @@ extra/
 # User data (runtime dirs at the repo root only — not nested source packages
 # like the Android `data/` package, which an unanchored `data/` would swallow)
 /data/
+data/.admin_token
 /uploads/
 
 # OS files

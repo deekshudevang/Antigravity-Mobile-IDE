@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: GitHub Discussions
+    url: https://github.com/deekshudevang/Antigravity-Mobile-IDE/discussions
+    about: Ask general questions, share ideas, and connect with other users.
+  - name: Security Vulnerability Reporting
+    url: https://github.com/deekshudevang/Antigravity-Mobile-IDE/security/advisories
+    about: Privately disclose a security vulnerability.

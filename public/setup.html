@@ -202,6 +202,41 @@
 <div id="toast"></div>
 
 <script>
+// Intercept fetch for x-admin-token (SEC-06)
+(function() {
+    const origFetch = window.fetch;
+    window.fetch = async function(url, options = {}) {
+        options = options || {};
+        options.headers = options.headers || {};
+        const urlStr = String(url);
+        if (urlStr.startsWith('/api/admin') || urlStr.startsWith('/api/setup')) {
+            let token = sessionStorage.getItem('adminToken');
+            if (token) {
+                if (options.headers instanceof Headers) {
+                    options.headers.set('x-admin-token', token);
+                } else {
+                    options.headers['x-admin-token'] = token;
+                }
+            }
+        }
+        const res = await origFetch(url, options);
+        if ((res.status === 401 || res.status === 403) && (urlStr.startsWith('/api/admin') || urlStr.startsWith('/api/setup'))) {
+            sessionStorage.removeItem('adminToken');
+            const promptToken = prompt('Admin Token required or rejected. Enter token from console:');
+            if (promptToken) {
+                sessionStorage.setItem('adminToken', promptToken.trim());
+                if (options.headers instanceof Headers) {
+                    options.headers.set('x-admin-token', promptToken.trim());
+                } else {
+                    options.headers['x-admin-token'] = promptToken.trim();
+                }
+                return origFetch(url, options);
+            }
+        }
+        return res;
+    };
+})();
+
 const STEPS = 6;
 let cur = 0;
 let status = null;

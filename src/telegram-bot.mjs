@@ -87,7 +87,7 @@ setInterval(() => {
             rateLimits.delete(chatId);
         }
     }
-}, 300000);
+}, 300000).unref();
 
 // ============================================================================
 // Message Threading — group related notifications into reply chains
