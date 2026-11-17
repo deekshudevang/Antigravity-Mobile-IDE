@@ -36,8 +36,13 @@ This document contains manual actions requiring repository owner privileges (Git
 
 - [ ] **2.1 Configure GitHub Pages Source**
   - **Where**: `Settings` -> `Pages` -> `Build and deployment`:
-    - **Source**: `Deploy from a branch`
-    - **Branch**: `main` (or dedicated branch) / Folder: `/site` (or GitHub Actions).
+    - **Option A (Recommended — 1 Click)**:
+      - Change the **Source** dropdown to **`GitHub Actions`**.
+      - That's it! The automated workflow `.github/workflows/pages.yml` will automatically deploy the `site/` directory on every push.
+    - **Option B (Branch deployment)**:
+      - **Source**: `Deploy from a branch`
+      - **Branch**: `gh-pages`
+      - **Folder**: `/ (root)` (Click Save)
 
 ---
 
