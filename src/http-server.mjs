@@ -39,6 +39,12 @@ import { commandLifecycle } from './command-lifecycle.mjs';
 import * as FileSecurity from './file-security.mjs';
 import { getTaskProgress } from './task-parser.mjs';
 import { getHealthReport } from './process-supervisor.mjs';
+import {
+    initAdminToken,
+    requireAdminToken,
+    localhostOnly,
+    verifyAdminToken
+} from './admin-auth.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROJECT_ROOT = join(__dirname, '..');
@@ -525,8 +531,23 @@ app.get('/', (req, res) => {
     res.type('html').send(cachedInlinedHtml);
 });
 
+// Admin session authentication exchange endpoint (for browser login)
+app.post('/api/admin/session', localhostOnly, (req, res) => {
+    const { token } = req.body || {};
+    if (!token || !verifyAdminToken(token)) {
+        return res.status(403).json({ error: 'Invalid admin token' });
+    }
+    res.setHeader('Set-Cookie', `admin_token=${encodeURIComponent(token)}; HttpOnly; SameSite=Strict; Path=/`);
+    res.json({ success: true });
+});
+
+// Guard all /api/admin/* and /api/setup/* endpoints with localhostOnly AND requireAdminToken
+app.use('/api/admin', localhostOnly, requireAdminToken);
+app.use('/api/setup', localhostOnly, requireAdminToken);
+app.use(['/admin.html', '/setup.html'], localhostOnly, requireAdminToken);
+
 // Dev endpoint: rebuild cached HTML (useful after editing CSS/JS files)
-app.post('/api/admin/rebuild-html', localhostOnly, (req, res) => {
+app.post('/api/admin/rebuild-html', (req, res) => {
     buildInlinedHtml();
     res.json({ success: true, size: cachedInlinedHtml.length });
 });
@@ -651,24 +672,17 @@ app.post('/api/auth/logout', (req, res) => {
 });
 
 // ============================================================================
-// Admin Panel (localhost-only)
+// Admin Panel (localhost-only + admin token required)
 // ============================================================================
-function localhostOnly(req, res, next) {
-    const ip = req.ip || req.connection?.remoteAddress || '';
-    const isLocal = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
-    if (isLocal) return next();
-    res.status(403).json({ error: 'Admin access is localhost only' });
-}
-
 // Serve admin page
-app.get('/admin', localhostOnly, (req, res) => {
+app.get('/admin', localhostOnly, requireAdminToken, (req, res) => {
     res.sendFile(join(PROJECT_ROOT, 'public', 'admin.html'));
 });
 
 // ============================================================================
-// Setup wizard — first-run guide (localhost only, like the admin panel)
+// Setup wizard — first-run guide (localhost only + admin token required)
 // ============================================================================
-app.get('/setup', localhostOnly, (req, res) => {
+app.get('/setup', localhostOnly, requireAdminToken, (req, res) => {
     res.sendFile(join(PROJECT_ROOT, 'public', 'setup.html'));
 });
 
@@ -2989,6 +3003,9 @@ async function startServer() {
     // One-time device pairing (gates full-PC input injection). Prints the code.
     Pairing.init();
 
+    // Initialize random admin token (SEC-06)
+    initAdminToken(join(PROJECT_ROOT, 'data'));
+
     // Set active CDP device from config
     const devices = Config.getConfig('devices') || [];
     const activeDevice = devices.find(d => d.active);
@@ -3138,4 +3155,9 @@ async function startServer() {
     }
 }
 
-startServer();
+export { app, startServer };
+
+const isMain = process.argv[1] && resolve(process.argv[1]) === resolve(fileURLToPath(import.meta.url));
+if (isMain) {
+    startServer();
+}
