@@ -52,13 +52,20 @@
 ---
 
 ## Phase 1 — Repository Audit
-- [ ] 1.1 Audit README and docs for misleading claims, broken links, and missing attribution
-- [ ] 1.2 Audit repo structure, dead files, and package manifests
-- [ ] 1.3 Produce `docs/REPO_AUDIT.md` (prioritized findings with severity)
-- [ ] 1.4 Produce `docs/SEO_AUDIT.md` (crawlability, metadata, discoverability gaps)
-- [ ] 1.5 Produce `docs/GITHUB_DISCOVERABILITY_AUDIT.md` (topics, description, social preview)
-- [ ] 1.6 Produce `docs/COMPETITOR_ANALYSIS.md` (publicly verifiable facts on existing tools)
-- [ ] 1.7 Produce `docs/SEARCH_INTENT_MAP.md` (query themes to single landing pages)
+- [x] 1.1 Audit README and docs for misleading claims, broken links, and missing attribution
+    Evidence: Comprehensive review of README claims against codebase and test results · files: `docs/REPO_AUDIT.md`
+- [x] 1.2 Audit repo structure, dead files, and package manifests
+    Evidence: Examined package.json, Cargo.toml, scripts, and npm audit vulnerabilities · files: `docs/REPO_AUDIT.md`
+- [x] 1.3 Produce `docs/REPO_AUDIT.md` (prioritized findings with severity)
+    Evidence: 10 categorized findings (AUD-01 to AUD-10) with severity, location, evidence, and fixes · files: `docs/REPO_AUDIT.md`
+- [x] 1.4 Produce `docs/SEO_AUDIT.md` (crawlability, metadata, discoverability gaps)
+    Evidence: Evaluated search indexing, crawl directives, structured data, and LLM discoverability · files: `docs/SEO_AUDIT.md`
+- [x] 1.5 Produce `docs/GITHUB_DISCOVERABILITY_AUDIT.md` (topics, description, social preview)
+    Evidence: Proposed topics, 192-char description, and community health items checklist · files: `docs/GITHUB_DISCOVERABILITY_AUDIT.md`
+- [x] 1.6 Produce `docs/COMPETITOR_ANALYSIS.md` (publicly verifiable facts on existing tools)
+    Evidence: Analyzed OmniAntigravityRemoteChat, Antimatter, CursorRemote, and official tools using public search data · files: `docs/COMPETITOR_ANALYSIS.md`
+- [x] 1.7 Produce `docs/SEARCH_INTENT_MAP.md` (query themes to single landing pages)
+    Evidence: Mapped 7 user search intents to unique canonical pages; established doorway-prevention policy · files: `docs/SEARCH_INTENT_MAP.md`
 
 ---
 
