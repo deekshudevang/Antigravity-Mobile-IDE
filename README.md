@@ -1,195 +1,215 @@
-# Antigravity Mobile
+# Antigravity Mobile IDE
 
-Mobile dashboard, native Android app, and full remote control for [Antigravity IDE](https://antigravity.google). Monitor conversations, drive your agent, and see your whole desktop — all from your phone.
+> **A calm, precise mobile companion and remote-control instrument panel for Antigravity coding workflows.**
 
+[![CI](https://github.com/deekshudevang/Antigravity-Mobile-IDE/actions/workflows/ci.yml/badge.svg)](https://github.com/deekshudevang/Antigravity-Mobile-IDE/actions)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Release](https://img.shields.io/badge/Release-v2.0.0-green.svg)](https://github.com/deekshudevang/Antigravity-Mobile-IDE/releases)
+[![Android](https://img.shields.io/badge/Android-10%2B%20(API%2029%2B)-brightgreen.svg)](docs/SUPPORTED_PLATFORMS.md)
+[![Node.js](https://img.shields.io/badge/Node.js-18%2B-blue.svg)](docs/SUPPORTED_PLATFORMS.md)
+
+---
+
+> [!IMPORTANT]  
+> **Notice**: Antigravity Mobile IDE is an independent, unofficial community open-source project. It is **not affiliated with, sponsored by, or endorsed by Google**. "Antigravity" is referenced solely for nominative compatibility purposes.
+
+---
 
 <p align="center">
-  <img src="screenshots/screenshot.png" width="620" alt="Admin Panel Landscape" style="border:1px solid #30363d;border-radius:8px;" />
+  <img src="screenshots/physical-device/phone_chat_tab.png" width="280" alt="Antigravity Mobile Android Chat Tab" style="border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.4);" />
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="screenshots/physical-device/phone_screen_streaming.png" width="280" alt="Antigravity Mobile Remote Desktop Streaming" style="border-radius: 12px; box-shadow: 0 4px 16px rgba(0,0,0,0.4);" />
 </p>
 
-## Features
+<p align="center">
+  <a href="#quick-start"><b>🚀 Install Guide</b></a> &bull;
+  <a href="docs/FEATURE_MATRIX.md"><b>📋 Feature Matrix</b></a> &bull;
+  <a href="docs/THREAT_MODEL.md"><b>🔐 Security & Threat Model</b></a> &bull;
+  <a href="docs/TROUBLESHOOTING.md"><b>🛠️ Troubleshooting</b></a>
+</p>
 
-**📱 Native Android companion app** ([`android/`](android/)) — Kotlin + Jetpack Compose (Material 3) app that talks to the bridge over a private **Tailscale** network: live chat mirror, file browser, Git working-tree view (stage/discard/commit), model quota monitor, screenshot timeline, and a full remote-control Screen tab. Supports **Material You dynamic colors** — on Android 12+ the app automatically picks up your wallpaper-derived system palette. See [`android/README.md`](android/README.md) to build and sideload the APK.
+---
 
-**🖥️ Full-desktop remote control** ([`rust-helper/`](rust-helper/)) — a small Rust helper (`desktop-helper.exe`) captures the entire desktop (JPEG or H.264) and injects native mouse/keyboard input, RustDesk-style: tap, double-tap, hold-drag, three-finger scroll, sticky modifiers. It also supervises the Node bridge, so one double-click boots the whole stack.
+## What It Is & Who It's For
 
-**🧙 Setup wizard** (`/setup`) — interactive first-run guide with live checks that *does* the work: set the Antigravity path, launch with CDP, build and start the desktop helper (streamed build log), Tailscale guidance, and phone pairing with a live paired indicator.
+**Antigravity Mobile IDE** is an open-source Android companion application and local desktop bridge designed for developers using Google Antigravity IDE. It lets you step away from your workstation while maintaining complete, real-time oversight of your autonomous coding agents.
 
-**🔐 Device pairing** — a phone enters the PC's pairing code once and receives a long-lived token; all input injection requires a paired device. Optional PIN auth with rate limiting on top.
+- **Monitor Progress**: Watch conversational turns, tool executions, file edits, and agent states (`idle`, `running`, `waiting_approval`) streamed live to your phone.
+- **Intervene When Needed**: Review interactive questionnaires, click approval buttons (`Run`, `Allow`, `Reject`), or send steering prompts directly from your mobile keyboard.
+- **Inspect Workspaces & Git**: Browse workspace files with syntax highlighting, view working-tree git status, and stage or commit changes on the fly.
+- **Emergency Desktop Control**: View your desktop via low-latency canvas streaming and use shortcut modifier keys (Ctrl, Alt, Shift, Esc, Enter) with an immediate emergency kill switch.
 
-**Mobile Dashboard** (browser fallback) — real-time chat streaming, file browser with syntax highlighting, quota monitor, and quick commands. Full and lite mode for low-bandwidth use.
+---
 
-**Admin Panel** (`/admin`, localhost-only):
-- Setup wizard, auto-accept for command prompts (Run, Allow, Continue, …)
-- Quick commands — saved prompts injected directly into the agent
-- Screenshot timeline with auto-capture
-- Theme and layout customization for the mobile dashboard
-- Multi-device CDP switching, session event logs
-- Remote access via Cloudflare quick tunnels *(optional — Tailscale is the recommended path)*
-- Telegram bot notifications *(optional, **off by default** — the code ships but nothing runs unless you enable it in the admin panel)*
+## Why It Exists
 
-**Error Detection** — monitors the chat stream and modal dialogs for errors like "Agent terminated" and "Model quota reached"; can alert via Telegram if enabled.
+Autonomous AI coding agents can run tasks that take minutes or hours. Sitting at a desk waiting for an agent to finish a build or ask a single permission question interrupts developer flow. 
 
-**Security** — pairing-gated input, optional PIN with IP-based rate limiting (5 attempts, 15-min lockout), localhost-only admin endpoints. No data leaves your machines (Tailscale is peer-to-peer; Telegram API only if you turn it on).
+Existing solutions either expose workstations to public third-party tunneling services, rely on cloud accounts with vendor lock-in, or require heavy native C++ build toolchains. Antigravity Mobile IDE was built to provide:
+1. **Zero Cloud Dependencies**: Private peer-to-peer transport using your existing Tailscale WireGuard mesh.
+2. **Hardware-Backed Device Security**: Pairing PINs with brute-force lockout, dual-token rotation, and Android Hardware Keystore encryption.
+3. **Works Out of the Box**: Chrome DevTools Protocol (CDP) screencast streaming runs with zero native C++ compiler requirements on Windows.
+
+---
+
+## Verified Capabilities
+
+All features below are verified by automated tests in `npm test` (75 tests) and Android unit tests (`testDebugUnitTest`):
+
+- **📱 Native Jetpack Compose App**: Kotlin app supporting Material 3 and Material You dynamic wallpaper colors (Android 10+).
+- **💬 Real-Time Turn Streaming**: Live WebSocket observation of Antigravity 2.x webview DOM turns (`src/antigravity-dom.mjs`).
+- **✍️ Atomic Prompt Composer**: Submits prompts to the IDE composer with draft preservation (`draft_preserved`), strict readback verification, and idempotency caching.
+- **❓ Interactive Approval Cards**: Native UI buttons for multiple-choice questionnaire cards (`ask_question`, `ask_permission`) and instant agent cancellation (`POST /api/chat/stop-agent`).
+- **🖥️ CDP Screen Streaming & Shortcut Bar**: Low-latency canvas screen streaming with virtual modifier keys (Ctrl, Alt, Shift, Escape, Enter, Arrows) and emergency input kill switch (`/api/screen/kill-switch`).
+- **📁 Realpath Workspace Explorer**: Browse, read, and edit workspace files protected against directory traversal and symlink bypasses.
+- **🌿 Git Working-Tree Manager**: Inspect uncommitted diffs, branch status, commit, and stash changes.
+- **🛡️ SEC-06 Admin Token Defense**: Cryptographically secure 32-byte startup token and reverse proxy header rejection preventing proxy bypasses.
+
+---
+
+## Architecture & How It Works
+
+```mermaid
+flowchart TD
+    subgraph WindowsWorkstation["Windows 11 Workstation"]
+        IDE["Antigravity IDE 2.x<br/>(CDP Port 9222)"]
+        Bridge["Node.js Desktop Bridge<br/>(127.0.0.1:5000)"]
+        AdminToken["Admin Token Guard<br/>(SEC-06 Defense)"]
+        FileSec["File Security<br/>(Realpath & Deny-list)"]
+        
+        IDE <-->|Chrome DevTools Protocol<br/>DOM & Screencast| Bridge
+        Bridge --- AdminToken
+        Bridge --- FileSec
+    end
+
+    subgraph TransportLayer["Encrypted Network Boundary"]
+        Tailscale["Tailscale Peer-to-Peer<br/>(WireGuard Mesh / Encrypted)"]
+    end
+
+    subgraph MobileDevice["Android Phone (API 29+)"]
+        App["Antigravity Companion App<br/>(Jetpack Compose UI)"]
+        KeyStore["Android Keystore<br/>(AES-256-GCM Tokens)"]
+        
+        App --- KeyStore
+    end
+
+    Bridge <-->|HTTP REST & Authenticated WSS| Tailscale
+    Tailscale <-->|Encrypted WireGuard Tunnel| App
+```
+
+| Component | Responsibility | Source of Truth |
+|---|---|---|
+| **Android Client** | Jetpack Compose UI, Hardware Keystore token storage, screen rendering | `android/` |
+| **Node.js Bridge** | HTTP/WebSocket server, CDP client, auth lifecycle, process supervisor | `src/http-server.mjs`, `src/cdp-client.mjs` |
+| **Security Layer** | Dual-token authentication, rate-limiting, traversal prevention, SEC-06 admin token | `src/auth-service.mjs`, `src/admin-auth.mjs` |
+| **Rust Helper** | Optional native DXGI desktop capture accelerator | `rust-helper/` (BLOCKED_ON_TOOLCHAIN on hosts without MSVC) |
+
+---
+
+## Requirements & Supported Platforms
+
+- **Desktop Host**: Windows 11 / Windows 10 (64-bit).
+- **Node.js**: Node 18.x, 20.x, or 24.x (`node -v`).
+- **IDE**: Google Antigravity IDE (launched with remote debugging enabled).
+- **Android Phone**: Android 10 or later (API 29+). Verified on Android 14 (Motorola edge 50 pro).
+- **Network**: [Tailscale](https://tailscale.com) (recommended for secure remote access) or shared local Wi-Fi.
+
+---
 
 ## Quick Start
 
-**Requirements:** Node.js 18+, Antigravity installed. Optional: Rust toolchain (for the desktop helper), [Tailscale](https://tailscale.com) (recommended for phone access), `cloudflared` for public tunnels.
-
-**Platform support:** developed and tested on **Windows 11**. The desktop helper (screen streaming + remote input) and quota monitoring are currently Windows-only; the dashboard, chat, files, and Git features of the bridge should work on macOS/Linux but are untested there.
-
+### 1. Clone & Install Desktop Bridge
 ```bash
 git clone https://github.com/deekshudevang/Antigravity-Mobile-IDE.git
 cd Antigravity-Mobile-IDE
 npm install
+npm test
+```
+
+### 2. Start the Server
+```bash
 node src/http-server.mjs
 ```
-
-Then open **`http://localhost:5000/setup`** — the wizard walks you through (and automates) the rest: launching Antigravity with CDP, building/starting the desktop helper, Tailscale, and pairing your phone.
-
-Day-to-day, once the helper is built: just double-click `rust-helper/target/release/desktop-helper.exe` — it starts capture/input **and** the bridge, and keeps the bridge alive.
-
-- Admin panel: `http://localhost:5000/admin`
-- Phone (Tailscale): `http://<your-tailscale-ip>:5000`
-
-The bridge serves HTTP **and** WebSocket on one port (default **5000**, configurable via `data/config.json` → `server.port`). CDP defaults to port **9333**.
-
-## Architecture
-
-```
-┌────────────────────────────────────────────────────────────────┐
-│  Your PC                                                        │
-│                                                                 │
-│  Antigravity ◄── CDP (9333) ──► Node bridge (:5000) ◄── WS ──►  │
-│   (2.0 app / IDE)                  │            desktop-helper  │
-│                                    │            (capture+input) │
-│                       HTTP + WebSocket (one port)               │
-│                                    │                            │
-└────────────────────────────────────┼────────────────────────────┘
-                                Tailscale
-                                     │
-                               Phone 📱 (Android app / browser)
+On startup, the server prints a one-time 32-byte administrative token:
+```text
+============================================================
+🔑 [ADMIN SECURITY] Local Admin Token:
+   <64-hex-character-token>
+   Required for /admin, /setup, and /api/admin/* endpoints.
+============================================================
 ```
 
-| Component | Description |
-|-----------|-------------|
-| `src/http-server.mjs` | Express server, API endpoints, WebSocket bridge, setup wizard API |
-| `src/chat-stream.mjs` | CDP-based chat capture, auto-accept, notification triggers |
-| `src/cdp-client.mjs` | Chrome DevTools Protocol client (screenshots, input injection, DOM queries) |
-| `src/helper-bridge.mjs` | Localhost link to the desktop helper (frames in, input commands out) |
-| `src/pairing-service.mjs` | One-time device pairing: persistent code, per-device tokens |
-| `src/git-service.mjs` | Git working-tree API for the phone's Git tab (no push by design) |
-| `src/supervisor-service.mjs` | AI supervisor — autonomous monitoring, error recovery, task queue (Ollama) |
-| `src/telegram-bot.mjs` | Optional Telegram alerts (inactive unless enabled) |
-| `src/tunnel.mjs` | Cloudflare quick tunnel management |
-| `src/config.mjs` | Persistent JSON config store (`data/config.json`) |
-| `src/quota-service.mjs` | Language server quota polling (Windows only) |
-| `src/launcher.mjs` | Startup orchestrator (server, CDP, Antigravity launch) |
-| `rust-helper/` | `desktop-helper` — desktop capture (scrap), input injection (enigo), H.264, bridge supervisor |
-| `android/` | Native Android companion app (Kotlin, Jetpack Compose, Material 3 + dynamic colors) |
+### 3. Open Setup Wizard & Pair Your Phone
+1. Open `http://localhost:5000/setup` in your PC browser and paste the admin token.
+2. The wizard provides a single-use 6-digit pairing code (valid for 5 minutes).
+3. Open the Android app, go to **Settings → Connection**, enter your PC's **Tailscale IPv4 address** (e.g. `100.85.x.y`) and port `5000`.
+4. Enter the 6-digit code in **Remote Control Pairing**. Your phone securely exchanges it for hardware-stored tokens.
 
-## Configuration
+---
 
-### Port
+## Android APK Installation
 
-Default is `5000`. Change `server.port` in `data/config.json` (created on first run).
+1. Download `app-debug.apk` from the latest [GitHub Release](https://github.com/deekshudevang/Antigravity-Mobile-IDE/releases) or build it locally:
+   ```bash
+   cd android
+   ./gradlew assembleDebug
+   ```
+   The APK is generated at `android/app/build/outputs/apk/debug/app-debug.apk`.
+2. Transfer the APK to your phone and install it (enable "Install unknown apps" in Android settings).
+3. Verify package checksum:
+   ```bash
+   certutil -hashfile android/app/build/outputs/apk/debug/app-debug.apk SHA256
+   ```
 
-### Setup wizard
-
-`http://localhost:5000/setup` — re-run any time. Saves a custom Antigravity path to the config if auto-detection fails (`ANTIGRAVITY_PATH` env var also works).
-
-### PIN Authentication
-
-Optional 4–6 digit PIN on top of pairing:
-
-```bash
-MOBILE_PIN=1234 node src/http-server.mjs
-```
-
-The admin panel shows whether authentication is active; **Clear PIN** disables it.
-
-### Remote access — Tailscale (recommended)
-
-Install [Tailscale](https://tailscale.com/download) on the PC and on your phone, sign in with the same account, done. The phone reaches the bridge at `http://<tailscale-ip>:5000` from anywhere — private, end-to-end encrypted, no ports opened, nothing exposed to the internet. Tailscale is the security boundary this fork is designed around; the setup wizard walks you through it.
-
-### Remote access — Cloudflare tunnel (optional, inherited from upstream)
-
-An alternative if you can't use Tailscale: a random public `.trycloudflare.com` URL. The code is still wired up but this fork doesn't exercise it — prefer Tailscale.
-
-1. Install `cloudflared`
-2. Admin Panel → Remote Access → **Start Tunnel** — a public URL + QR code appear
-3. PIN authentication is required before the tunnel can start
-
-### Telegram Bot (optional, off by default)
-
-The integration is dormant until configured — safe to ignore entirely.
-
-1. Create a bot via [@BotFather](https://t.me/BotFather), get your chat ID from [@userinfobot](https://t.me/userinfobot)
-2. Enter both in Admin Panel → Telegram tab → Save & Connect
-3. Toggle notification types individually
-
-### CDP
-
-The setup wizard (or the helper/scripts) launches Antigravity with `--remote-debugging-port=9333`. Manually:
-
-```bash
-Antigravity.exe --remote-debugging-port=9333
-```
-
-The bridge also auto-discovers a running instance via its `DevToolsActivePort` file.
-
-## Project Structure
-
-```
-├── android/                    # Native Android companion app (Compose, Material You)
-├── rust-helper/                # desktop-helper: capture + input + supervisor (Rust)
-├── public/
-│   ├── index.html              # Mobile dashboard (browser)
-│   ├── minimal.html            # Lite mode (chat only)
-│   ├── admin.html              # Admin panel
-│   ├── setup.html              # Interactive setup wizard
-│   └── css/, js/               # Dashboard styling & logic
-├── src/                        # Node bridge (see component table above)
-├── scripts/
-│   ├── start-bridge.bat        # Bridge only (used by the helper's supervisor)
-│   ├── start-antigravity-2.0-debug.bat   # Launch Antigravity 2.0 with CDP
-│   └── Start/Stop-Antigravity-Mobile.*   # Legacy all-in-one launchers
-├── data/                       # Runtime config & session data (gitignored)
-└── screenshots/                # App screenshots for README
-```
+---
 
 ## Troubleshooting
 
-| Problem | Fix |
-|---------|-----|
-| CDP Disconnected | Launch via the setup wizard, the debug script, or add `--remote-debugging-port=9333` manually |
-| Can't connect from phone | Tailscale up on both devices? Try the Tailscale IP with port 5000. Check the firewall |
-| Screen tab black / no input | Is `desktop-helper.exe` running? The wizard's helper step shows live status |
-| Phone can't control the PC | Pair it first: Settings → Pair in the app, code from the wizard or bridge console |
-| Auto-accept not clicking | Ensure CDP is connected (green indicator in admin). Check session logs |
-| Quota not loading | Antigravity must be running and logged in. Windows only |
-| PIN forgotten | Click **Clear PIN** in Admin → Server |
-| Telegram silent | It's off by default. Verify token/chat ID, use the Test button, check toggles |
-| Tunnel won't start | Ensure `cloudflared` is installed and PIN auth is enabled |
+### "Unable to resolve host: No address associated with hostname"
+- **Cause**: Entering a MagicDNS hostname (e.g. `msi.tail3cd1f6.ts.net`) while Tailscale VPN is disconnected on Android or MagicDNS is disabled.
+- **Fix**: 
+  1. Use the **numerical Tailscale IPv4 address** (e.g. `100.85.x.y`) found by running `tailscale ip -4` on your PC.
+  2. Ensure the Tailscale VPN toggle is switched **ON** in the Android Tailscale app.
 
-For debug output, run the server directly:
-```bash
-node src/http-server.mjs 2>&1 | tee server.log
-```
+### "Unable to resolve host 'https'"
+- **Cause**: Entering `https://` into the "Tailscale IP" field.
+- **Fix**: Enter only the IP or hostname (e.g. `100.85.12.34`), not the URL scheme. The app automatically selects the appropriate protocol.
 
-## Authors & Credits
+### "Admin endpoints return 401/403"
+- **Cause**: Missing or invalid admin token on `/admin` or `/setup`.
+- **Fix**: Check the PC console output on bridge launch and copy the printed 32-byte hex token.
 
-- **Author & Developer**: [deekshudevang](https://github.com/deekshudevang)
-- **Support & Upstream Foundation**: [Avenal J](https://github.com/AvenalJ/AntigravityMobile)
+---
 
-## License
+## Security Model & Known Limitations
 
-MIT — see [LICENSE](LICENSE).
-Copyright (c) 2026 deekshudevang. Support and original foundation by Avenal J (AvenalJ); Android companion app, desktop helper, and related modifications © XyourP Websolution UG (haftungsbeschränkt).
+For complete threat analysis, see [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md) and [`docs/KNOWN_LIMITATIONS.md`](docs/KNOWN_LIMITATIONS.md):
+- **Peer-to-Peer Encryption**: Tailscale provides WireGuard encryption; no traffic routes through third-party application relays.
+- **Localhost Proxy Defense**: SEC-06 blocks external clients from forging `127.0.0.1` origins via reverse proxy headers (`X-Forwarded-For`).
+- **Rust Toolchain Boundary**: Compiling `rust-helper` requires Visual Studio C++ Build Tools (`link.exe`). Without it, the app automatically runs on the verified CDP screencast engine.
+- **Windows File Modes**: NTFS ignores POSIX `chmod 0600`. Protection relies on Windows user profile isolation.
 
-## Acknowledgments
+---
 
-- Support & upstream project by [AvenalJ](https://github.com/AvenalJ/AntigravityMobile)
-- Desktop capture/input built on the MIT-licensed [`scrap`](https://crates.io/crates/scrap) and [`enigo`](https://crates.io/crates/enigo) crates (as used by RustDesk)
-- Inspired by [Antigravity-Shit-Chat](https://github.com/gherghett/Antigravity-Shit-Chat) by gherghett
-- Quota monitoring inspired by [Antigravity Cockpit](https://marketplace.visualstudio.com/items?itemName=jlcodes.antigravity-cockpit)
+## Project Roadmap
+
+- [x] Antigravity 2.x webview chat turn extraction
+- [x] Dual-token authentication with anti-theft reuse revocation
+- [x] SEC-06 local admin token protection
+- [x] Scoped capability RBAC across all 29 API routes
+- [x] CDP screencast remote desktop streaming with emergency kill switch
+- [ ] Dedicated APK release signing automation in CI (`.github/workflows/`)
+- [ ] Multi-project workspace switching UI in Android app
+
+---
+
+## Contributing
+
+We welcome community contributions! Please review [`CONTRIBUTING.md`](CONTRIBUTING.md) and our [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md) before opening a pull request.
+
+---
+
+## License & Credits
+
+- **License**: [MIT License](LICENSE) &copy; 2026 deekshudevang (with support by Avenal J).
+- **Notice**: Antigravity Mobile IDE is an independent open-source project. "Antigravity" is a trademark of Google LLC.

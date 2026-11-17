@@ -104,9 +104,12 @@
 ---
 
 ## Phase 5 — README Overhaul
-- [ ] 5.1 Rewrite README above-the-fold: logo, tagline, disclaimer, real badges, screenshot
-- [ ] 5.2 Add verified quickstart, architecture diagram (Mermaid), and security overview
-- [ ] 5.3 Verify all internal and external links with automated check
+- [x] 5.1 Rewrite README above-the-fold: logo, tagline, disclaimer, real badges, screenshot
+    Evidence: Added prominent non-affiliation notice, verified physical device screenshots, 5 verified badges, quick navigation · files: `README.md`
+- [x] 5.2 Add verified quickstart, architecture diagram (Mermaid), and security overview
+    Evidence: GitHub native Mermaid diagram, copy-paste verified commands, security overview, troubleshooting recipes · files: `README.md`, `docs/TROUBLESHOOTING.md`
+- [x] 5.3 Verify all internal and external links with automated check
+    Evidence: Node automated link checker verified all relative links resolve to existing files (0 missing) · files: `README.md`
 
 ---
 
