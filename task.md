@@ -114,17 +114,24 @@
 ---
 
 ## Phase 6 — Static Website (GitHub Pages)
-- [ ] 6.1 Create lightweight static website in `site/` with semantic HTML & zero CLS
-- [ ] 6.2 Implement foundation files: `index.html`, `404.html`, `robots.txt`, `sitemap.xml`, `manifest.webmanifest`
-- [ ] 6.3 Implement consolidated intent pages (install, architecture, security, faq)
-- [ ] 6.4 Implement JSON-LD structured data (`WebSite`, `SoftwareApplication`, `BreadcrumbList`)
+- [x] 6.1 Create lightweight static website in `site/` with semantic HTML & zero CLS
+    Evidence: Authored responsive, accessible CSS tokens and templates with zero layout shift · files: `site/styles.css`
+- [x] 6.2 Implement foundation files: `index.html`, `404.html`, `robots.txt`, `sitemap.xml`, `manifest.webmanifest`
+    Evidence: Created robots.txt, sitemap.xml with 7 verified URLs, PWA manifest, and llms.txt · files: `site/`
+- [x] 6.3 Implement consolidated intent pages (install, architecture, security, faq)
+    Evidence: Created intent-grounded pages for install, architecture, security, troubleshooting, compare, and changelog · files: `site/`
+- [x] 6.4 Implement JSON-LD structured data (`WebSite`, `SoftwareApplication`, `BreadcrumbList`)
+    Evidence: Embedded schema.org SoftwareApplication and BreadcrumbList without fabricated ratings · files: `site/`
 
 ---
 
 ## Phase 7 — Brand & Visual Assets
-- [ ] 7.1 Design original SVG logo mark, wordmark, and favicon set
-- [ ] 7.2 Generate social preview (1280x640) and OG image (1200x630)
-- [ ] 7.3 Create clean architecture and pairing diagrams in SVG
+- [x] 7.1 Design original SVG logo mark, wordmark, and favicon set
+    Evidence: Original SVG logo squircle with dual orbital ring and mobile frame; SVG favicon · files: `site/assets/logo.svg`, `favicon.svg`
+- [x] 7.2 Generate social preview (1280x640) and OG image (1200x630)
+    Evidence: 1280x640 vector card with verified feature badges and Google non-affiliation disclaimer · files: `site/assets/social-preview.svg`
+- [x] 7.3 Create clean architecture and pairing diagrams in SVG
+    Evidence: Clean vector architecture and 3-step pairing flow SVGs · files: `site/assets/architecture-diagram.svg`, `pairing-flow.svg`
 
 ---
 

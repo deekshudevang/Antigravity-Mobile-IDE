@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Antigravity Mobile IDE — Android Remote Control</title>
+  <meta name="description" content="Open-source Android companion and remote control for Google Antigravity IDE. Real-time chat streaming, approvals, and screen control via Tailscale.">
+  <link rel="canonical" href="https://deekshudevang.github.io/Antigravity-Mobile-IDE/">
+  <link rel="icon" type="image/svg+xml" href="./assets/favicon.svg">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="stylesheet" href="./styles.css">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://deekshudevang.github.io/Antigravity-Mobile-IDE/">
+  <meta property="og:title" content="Antigravity Mobile IDE — Android Remote Control">
+  <meta property="og:description" content="Open-source Android companion for Google Antigravity IDE. Monitor agent turns, review approvals, and stream your screen securely.">
+  <meta property="og:image" content="https://deekshudevang.github.io/Antigravity-Mobile-IDE/assets/social-preview.svg">
+
+  <!-- Twitter -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Antigravity Mobile IDE — Android Remote Control">
+  <meta name="twitter:description" content="Open-source Android companion for Google Antigravity IDE. Monitor agent turns, review approvals, and stream your screen securely.">
+  <meta name="twitter:image" content="https://deekshudevang.github.io/Antigravity-Mobile-IDE/assets/social-preview.svg">
+
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Antigravity Mobile IDE",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Android, Windows",
+    "description": "Open-source Android companion and remote control dashboard for Google Antigravity IDE.",
+    "url": "https://deekshudevang.github.io/Antigravity-Mobile-IDE/",
+    "license": "https://opensource.org/licenses/MIT",
+    "softwareVersion": "2.0.0"
+  }
+  </script>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="./index.html" class="brand-link">
+        <img src="./assets/logo.svg" alt="Antigravity Mobile IDE logo" width="32" height="32">
+        <span>Antigravity Mobile</span>
+      </a>
+      <nav class="site-nav" aria-label="Main Navigation">
+        <a href="./index.html" class="active">Overview</a>
+        <a href="./install/">Install</a>
+        <a href="./architecture/">Architecture</a>
+        <a href="./security/">Security</a>
+        <a href="./troubleshooting/">Troubleshooting</a>
+        <a href="./compare/">Compare</a>
+        <a href="./changelog/">Changelog</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main-content" class="container">
+    <section class="hero">
+      <span class="hero-pill">UNOFFICIAL COMMUNITY COMPANION</span>
+      <h1>Control Antigravity from Your Phone</h1>
+      <p class="lead">
+        A calm, precise Android instrument panel for Google Antigravity coding workflows. Monitor conversations, handle approvals, and inspect git working trees—without sitting at your desk.
+      </p>
+      <div class="cta-group">
+        <a href="./install/" class="btn btn-primary">Get Started &rarr;</a>
+        <a href="https://github.com/deekshudevang/Antigravity-Mobile-IDE" class="btn btn-secondary" target="_blank" rel="noopener">GitHub Repository</a>
+      </div>
+    </section>
+
+    <section aria-labelledby="showcase-heading">
+      <h2 id="showcase-heading" class="sr-only" style="position: absolute; width: 1px; height: 1px; overflow: hidden;">App Showcase</h2>
+      <div class="screenshot-grid">
+        <div class="screenshot-card">
+          <img src="./assets/phone_chat_tab.png" alt="Android companion app conversation screen showing real-time agent responses" width="280" height="592" loading="eager">
+          <div class="screenshot-caption">Live Chat Turn Mirroring &amp; Approvals</div>
+        </div>
+        <div class="screenshot-card">
+          <img src="./assets/phone_screen_streaming.png" alt="Android remote screen tab showing low-latency desktop mirroring with modifier keyboard bar" width="280" height="592" loading="lazy">
+          <div class="screenshot-caption">CDP Screen Mirroring with Modifier Keys</div>
+        </div>
+        <div class="screenshot-card">
+          <img src="./assets/phone_git_tab.png" alt="Android git tab showing working tree diffs, branch status, and commit controls" width="280" height="592" loading="lazy">
+          <div class="screenshot-caption">Git Working Tree &amp; Diff Inspection</div>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="features-heading" style="margin-top: var(--space-12);">
+      <h2 id="features-heading" style="text-align: center; margin-bottom: var(--space-8);">Built for Developer Confidence</h2>
+      
+      <div class="grid-2">
+        <article class="card">
+          <h3>⚡ Real-Time Turn Streaming</h3>
+          <p>Direct WebSocket connection to the local bridge observes Antigravity 2.x webview turns as they occur. Read agent progress and tool execution output with zero delay.</p>
+        </article>
+
+        <article class="card">
+          <h3>🔐 Hardware-Stored Security</h3>
+          <p>Pairing is single-use and rate-limited. Credentials rotate through dual JWT tokens stored securely inside the Android Hardware Keystore (AES-256-GCM).</p>
+        </article>
+
+        <article class="card">
+          <h3>🔒 Zero-Cloud Private Mesh</h3>
+          <p>Communicates over your private Tailscale WireGuard network. Your code and conversations never pass through third-party relay servers or public clouds.</p>
+        </article>
+
+        <article class="card">
+          <h3>🛑 Emergency Input Kill Switch</h3>
+          <p>Stream your Windows desktop via Chrome DevTools Protocol screencast with virtual shortcut keys (Ctrl, Alt, Shift, Esc) and disengage control instantly with one tap.</p>
+        </article>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-links">
+        <a href="./install/">Install Guide</a>
+        <a href="./architecture/">Architecture</a>
+        <a href="./security/">Security Policy</a>
+        <a href="./troubleshooting/">Troubleshooting</a>
+        <a href="./compare/">Compare</a>
+        <a href="./changelog/">Changelog</a>
+        <a href="https://github.com/deekshudevang/Antigravity-Mobile-IDE" target="_blank" rel="noopener">GitHub</a>
+      </div>
+      <p class="footer-disclaimer">
+        Antigravity Mobile IDE is an independent open-source project. Not affiliated with, endorsed by, or sponsored by Google LLC. Antigravity and Android are trademarks of Google LLC.
+      </p>
+    </div>
+  </footer>
+</body>
+</html>

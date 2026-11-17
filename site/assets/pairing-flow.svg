@@ -1,0 +1,43 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 240" width="100%" height="auto" fill="none">
+  <defs>
+    <style>
+      .hdr { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; font-size: 15px; font-weight: 600; fill: #F1F5F9; }
+      .desc { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; font-size: 12px; fill: #94A3B8; }
+      .step-box { fill: #111827; stroke: #334155; stroke-width: 1.5; rx: 8px; }
+      .num { font-family: monospace; font-size: 20px; font-weight: bold; fill: #00E5FF; }
+    </style>
+  </defs>
+
+  <rect width="800" height="240" fill="#090D16" rx="10"/>
+
+  <!-- Step 1 -->
+  <rect x="30" y="30" width="220" height="180" class="step-box"/>
+  <text x="50" y="65" class="num">01</text>
+  <text x="85" y="65" class="hdr">Generate PIN</text>
+  <text x="50" y="105" class="desc">• Single-use 6-digit code</text>
+  <text x="50" y="130" class="desc">• 5-minute cryptographic expiry</text>
+  <text x="50" y="155" class="desc">• Rate limited (5 max attempts)</text>
+  <text x="50" y="180" class="desc">• Generated on Desktop Bridge</text>
+
+  <!-- Step 2 -->
+  <rect x="290" y="30" width="220" height="180" class="step-box" stroke="#00E5FF"/>
+  <text x="310" y="65" class="num">02</text>
+  <text x="345" y="65" class="hdr" fill="#00E5FF">Secure Exchange</text>
+  <text x="310" y="105" class="desc">• Phone enters 6-digit PIN</text>
+  <text x="310" y="130" class="desc">• Sent over Tailscale tunnel</text>
+  <text x="310" y="155" class="desc">• Atomic PIN invalidation</text>
+  <text x="310" y="180" class="desc">• Dual JWT tokens issued</text>
+
+  <!-- Step 3 -->
+  <rect x="550" y="30" width="220" height="180" class="step-box"/>
+  <text x="570" y="65" class="num">03</text>
+  <text x="605" y="65" class="hdr">Keystore Lock</text>
+  <text x="570" y="105" class="desc">• AES-256-GCM hardware store</text>
+  <text x="570" y="130" class="desc">• Rotating refresh credentials</text>
+  <text x="570" y="155" class="desc">• Anti-theft theft revocation</text>
+  <text x="570" y="180" class="desc">• Instant remote kill switch</text>
+
+  <!-- Connecting arrows -->
+  <path d="M 255 120 L 285 120" stroke="#00E5FF" stroke-width="2" stroke-dasharray="4 2"/>
+  <path d="M 515 120 L 545 120" stroke="#00E5FF" stroke-width="2" stroke-dasharray="4 2"/>
+</svg>

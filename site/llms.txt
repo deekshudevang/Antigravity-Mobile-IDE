@@ -1,0 +1,16 @@
+# Antigravity Mobile IDE
+
+> Unofficial open-source Android companion and remote-control dashboard for Google Antigravity IDE.
+> Repository: https://github.com/deekshudevang/Antigravity-Mobile-IDE
+> Website: https://deekshudevang.github.io/Antigravity-Mobile-IDE/
+> License: MIT
+
+## Core Architecture
+- Desktop Bridge: Node.js Express & WebSocket server bound to loopback (127.0.0.1:5000).
+- Remote Transport: Peer-to-peer WireGuard mesh via Tailscale (recommended).
+- Security Model: SEC-06 32-byte startup admin token, dual-token access/refresh lifecycle, rate-limited single-use PIN pairing, and realpath workspace boundaries.
+- Screen Streaming: Chrome DevTools Protocol (CDP) Page.startScreencast fallback (zero native compiler needed).
+- Mobile Client: Native Android (Kotlin, Jetpack Compose, Material 3, Android 10+ / API 29+).
+
+## Disclaimer
+Antigravity Mobile IDE is an independent community project. It is not affiliated with, sponsored by, or endorsed by Google LLC.
