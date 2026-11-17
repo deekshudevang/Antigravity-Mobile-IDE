@@ -92,7 +92,8 @@ function connect() {
         connected = false;
         helperEvents.emit('status', { connected: false });
         ws = null;
-        setTimeout(connect, backoff);
+        const timer = setTimeout(connect, backoff);
+        if (timer && typeof timer.unref === 'function') timer.unref();
         backoff = Math.min(backoff * 2, MAX_BACKOFF);
     };
 

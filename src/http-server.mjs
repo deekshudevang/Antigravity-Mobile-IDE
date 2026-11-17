@@ -615,7 +615,7 @@ setInterval(() => {
             loginAttempts.delete(ip);
         }
     }
-}, 300000);
+}, 300000).unref();
 
 // ============================================================================
 // Auth Endpoints (before auth middleware)
@@ -1159,7 +1159,7 @@ app.get('/api/admin/screenshots/:filename', localhostOnly, (req, res) => {
 // Mirrors the admin routes above so the Android companion can show the saved
 // scheduled-screenshot timeline. Security is provided by the Tailscale network.
 // ----------------------------------------------------------------------------
-app.get('/api/screenshots', (req, res) => {
+app.get('/api/screenshots', AuthService.requireCapability(AuthService.CAPABILITIES.SCREEN_VIEW), (req, res) => {
     try {
         if (!existsSync(SCREENSHOTS_DIR)) return res.json({ screenshots: [] });
         const files = readdirSync(SCREENSHOTS_DIR).filter(f => f.endsWith('.jpg')).sort().reverse();
@@ -1175,7 +1175,7 @@ app.get('/api/screenshots', (req, res) => {
 });
 
 // Serve a saved screenshot image to mobile (Tailscale-reachable)
-app.get('/api/screenshots/:filename', (req, res) => {
+app.get('/api/screenshots/:filename', AuthService.requireCapability(AuthService.CAPABILITIES.SCREEN_VIEW), (req, res) => {
     // Prevent path traversal: only allow the expected filename shape
     const name = req.params.filename;
     if (!/^screenshot-[\w-]+\.jpg$/.test(name)) {
@@ -1295,7 +1295,7 @@ app.post('/api/admin/supervisor/clear', localhostOnly, (req, res) => {
 });
 
 // Supervisor chat — user talks to supervisor conversationally (Assist tab)
-app.post('/api/supervisor/chat', async (req, res) => {
+app.post('/api/supervisor/chat', AuthService.requireCapability(AuthService.CAPABILITIES.PROMPT_SUBMIT), async (req, res) => {
     const { message } = req.body || {};
     if (!message || !message.trim()) return res.json({ success: false, error: 'Empty message' });
     const result = await Supervisor.chatWithUser(message.trim());
@@ -1303,12 +1303,12 @@ app.post('/api/supervisor/chat', async (req, res) => {
 });
 
 // Get supervisor chat history for Assist tab
-app.get('/api/supervisor/chat/history', (req, res) => {
+app.get('/api/supervisor/chat/history', AuthService.requireCapability(AuthService.CAPABILITIES.CONVERSATION_READ), (req, res) => {
     res.json({ messages: Supervisor.getUserChatHistory() });
 });
 
 // Streaming supervisor chat via Server-Sent Events
-app.post('/api/supervisor/chat/stream', async (req, res) => {
+app.post('/api/supervisor/chat/stream', AuthService.requireCapability(AuthService.CAPABILITIES.PROMPT_SUBMIT), async (req, res) => {
     const { message } = req.body || {};
     if (!message || !message.trim()) {
         return res.json({ success: false, error: 'Empty message' });
@@ -1351,21 +1351,21 @@ app.post('/api/supervisor/chat/stream', async (req, res) => {
 // Task Queue API (Feature 3)
 // ============================================================================
 
-app.get('/api/supervisor/queue', (req, res) => {
+app.get('/api/supervisor/queue', AuthService.requireCapability(AuthService.CAPABILITIES.TASKS_READ), (req, res) => {
     res.json({ queue: Supervisor.getTaskQueue() });
 });
 
-app.post('/api/supervisor/queue', (req, res) => {
+app.post('/api/supervisor/queue', AuthService.requireCapability(AuthService.CAPABILITIES.TASKS_WRITE), (req, res) => {
     const { instruction } = req.body || {};
     if (!instruction) return res.json({ success: false, error: 'Missing instruction' });
     res.json(Supervisor.addTask(instruction));
 });
 
-app.delete('/api/supervisor/queue/:index', (req, res) => {
+app.delete('/api/supervisor/queue/:index', AuthService.requireCapability(AuthService.CAPABILITIES.TASKS_WRITE), (req, res) => {
     res.json(Supervisor.removeTask(parseInt(req.params.index)));
 });
 
-app.delete('/api/supervisor/queue', (req, res) => {
+app.delete('/api/supervisor/queue', AuthService.requireCapability(AuthService.CAPABILITIES.TASKS_WRITE), (req, res) => {
     res.json(Supervisor.clearTaskQueue());
 });
 
@@ -1374,19 +1374,19 @@ app.delete('/api/supervisor/queue', (req, res) => {
 // ============================================================================
 
 // Get pending suggestions
-app.get('/api/supervisor/suggestions', (req, res) => {
+app.get('/api/supervisor/suggestions', AuthService.requireCapability(AuthService.CAPABILITIES.TASKS_READ), (req, res) => {
     res.json({ suggestions: Supervisor.getPendingSuggestions() });
 });
 
 // Approve a suggestion
-app.post('/api/supervisor/suggestions/:id/approve', async (req, res) => {
+app.post('/api/supervisor/suggestions/:id/approve', AuthService.requireCapability(AuthService.CAPABILITIES.APPROVAL_RESPOND), async (req, res) => {
     const id = parseInt(req.params.id);
     const result = await Supervisor.approveSuggestion(id);
     res.json(result);
 });
 
 // Dismiss a suggestion
-app.post('/api/supervisor/suggestions/:id/dismiss', (req, res) => {
+app.post('/api/supervisor/suggestions/:id/dismiss', AuthService.requireCapability(AuthService.CAPABILITIES.APPROVAL_RESPOND), (req, res) => {
     const id = parseInt(req.params.id);
     const result = Supervisor.dismissSuggestion(id);
     res.json(result);
@@ -1396,7 +1396,7 @@ app.post('/api/supervisor/suggestions/:id/dismiss', (req, res) => {
 // File Awareness API (Feature 4)
 // ============================================================================
 
-app.post('/api/supervisor/file/read', Pairing.requirePaired, (req, res) => {
+app.post('/api/supervisor/file/read', AuthService.requireCapability(AuthService.CAPABILITIES.FILES_READ), (req, res) => {
     try {
         const { path: reqPath } = req.body || {};
         if (!reqPath) {
@@ -1423,7 +1423,7 @@ app.post('/api/supervisor/file/read', Pairing.requirePaired, (req, res) => {
     }
 });
 
-app.post('/api/supervisor/file/list', Pairing.requirePaired, (req, res) => {
+app.post('/api/supervisor/file/list', AuthService.requireCapability(AuthService.CAPABILITIES.FILES_READ), (req, res) => {
     try {
         const { path: reqPath } = req.body || {};
         const targetPath = reqPath || '.';
@@ -1453,11 +1453,11 @@ app.post('/api/supervisor/file/list', Pairing.requirePaired, (req, res) => {
 // Session Intelligence API (Feature 5)
 // ============================================================================
 
-app.get('/api/supervisor/sessions', (req, res) => {
+app.get('/api/supervisor/sessions', AuthService.requireCapability(AuthService.CAPABILITIES.STATUS_READ), (req, res) => {
     res.json(Supervisor.getSessionStats());
 });
 
-app.post('/api/supervisor/sessions/save', localhostOnly, (req, res) => {
+app.post('/api/supervisor/sessions/save', AuthService.requireCapability(AuthService.CAPABILITIES.STATUS_READ), localhostOnly, (req, res) => {
     res.json({ success: true, digest: Supervisor.saveSessionDigest() });
 });
 
@@ -1552,7 +1552,7 @@ app.use('/api', (req, res, next) => {
 // ============================================================================
 
 // Check CDP status
-app.get('/api/cdp/status', async (req, res) => {
+app.get('/api/cdp/status', AuthService.requireCapability(AuthService.CAPABILITIES.STATUS_READ), async (req, res) => {
     try {
         const status = await CDP.isAvailable();
         res.json(status);
@@ -1562,7 +1562,7 @@ app.get('/api/cdp/status', async (req, res) => {
 });
 
 // Get available CDP targets
-app.get('/api/cdp/targets', async (req, res) => {
+app.get('/api/cdp/targets', AuthService.requireCapability(AuthService.CAPABILITIES.STATUS_READ), async (req, res) => {
     try {
         const targets = await CDP.getTargets();
         res.json({ targets });
@@ -1572,7 +1572,7 @@ app.get('/api/cdp/targets', async (req, res) => {
 });
 
 // Click element by xpath (forwarded from mobile dashboard)
-app.post('/api/cdp/click', async (req, res) => {
+app.post('/api/cdp/click', AuthService.requireCapability(AuthService.CAPABILITIES.SCREEN_INPUT), async (req, res) => {
     try {
         const { xpath, text } = req.body;
         if (!xpath) return res.status(400).json({ success: false, error: 'Missing xpath' });
@@ -1585,7 +1585,7 @@ app.post('/api/cdp/click', async (req, res) => {
 });
 
 // Capture screenshot
-app.get('/api/cdp/screenshot', async (req, res) => {
+app.get('/api/cdp/screenshot', AuthService.requireCapability(AuthService.CAPABILITIES.SCREEN_VIEW), async (req, res) => {
     try {
         const format = req.query.format || 'png';
         const quality = parseInt(req.query.quality) || 80;
@@ -1613,7 +1613,7 @@ app.get('/api/cdp/screenshot', async (req, res) => {
 });
 
 // Screenshot as raw image (for <img> src)
-app.get('/api/cdp/screen.png', async (req, res) => {
+app.get('/api/cdp/screen.png', AuthService.requireCapability(AuthService.CAPABILITIES.SCREEN_VIEW), async (req, res) => {
     try {
         const base64 = await CDP.captureScreenshot({ format: 'png', quality: 90 });
         const buffer = Buffer.from(base64, 'base64');
@@ -1626,7 +1626,7 @@ app.get('/api/cdp/screen.png', async (req, res) => {
 });
 
 // Inject command (type text)
-app.post('/api/cdp/inject', async (req, res) => {
+app.post('/api/cdp/inject', AuthService.requireCapability(AuthService.CAPABILITIES.PROMPT_SUBMIT), async (req, res) => {
     try {
         const { text, submit } = req.body;
         if (!text) return res.status(400).json({ error: 'Text required' });
@@ -1654,7 +1654,7 @@ app.post('/api/cdp/inject', async (req, res) => {
 });
 
 // Focus input area
-app.post('/api/cdp/focus', async (req, res) => {
+app.post('/api/cdp/focus', AuthService.requireCapability(AuthService.CAPABILITIES.SCREEN_INPUT), async (req, res) => {
     try {
         const result = await CDP.focusInput();
         res.json(result);
@@ -1664,7 +1664,7 @@ app.post('/api/cdp/focus', async (req, res) => {
 });
 
 // Click an element in the IDE by XPath (forwarded from mobile)
-app.post('/api/cdp/click', async (req, res) => {
+app.post('/api/cdp/click', AuthService.requireCapability(AuthService.CAPABILITIES.SCREEN_INPUT), async (req, res) => {
     try {
         const { xpath, text } = req.body;
         if (!xpath) return res.status(400).json({ error: 'xpath required' });
@@ -1678,7 +1678,7 @@ app.post('/api/cdp/click', async (req, res) => {
 
 
 // Get live chat messages from IDE
-app.get('/api/cdp/chat', async (req, res) => {
+app.get('/api/cdp/chat', AuthService.requireCapability(AuthService.CAPABILITIES.CONVERSATION_READ), async (req, res) => {
     try {
         const result = await CDP.getChatMessages();
         res.json(result);
@@ -1688,7 +1688,7 @@ app.get('/api/cdp/chat', async (req, res) => {
 });
 
 // Get agent panel content
-app.get('/api/cdp/panel', async (req, res) => {
+app.get('/api/cdp/panel', AuthService.requireCapability(AuthService.CAPABILITIES.STATUS_READ), async (req, res) => {
     try {
         const result = await CDP.getAgentPanelContent();
         res.json(result);
@@ -1698,7 +1698,7 @@ app.get('/api/cdp/panel', async (req, res) => {
 });
 
 // Get conversation text from the IDE panel
-app.get('/api/cdp/conversation', async (req, res) => {
+app.get('/api/cdp/conversation', AuthService.requireCapability(AuthService.CAPABILITIES.CONVERSATION_READ), async (req, res) => {
     try {
         const result = await CDP.getConversationText();
         res.json(result);
@@ -1712,7 +1712,7 @@ app.get('/api/cdp/conversation', async (req, res) => {
 // ============================================================================
 
 // Get live chat snapshot
-app.get('/api/chat/snapshot', async (req, res) => {
+app.get('/api/chat/snapshot', AuthService.requireCapability(AuthService.CAPABILITIES.CONVERSATION_READ), async (req, res) => {
     try {
         const snapshot = await ChatStream.getChatSnapshot();
         if (snapshot) {
@@ -1726,7 +1726,7 @@ app.get('/api/chat/snapshot', async (req, res) => {
 });
 
 // Structured chat snapshot (clean JSON model, rendered by mobile with our own CSS)
-app.get('/api/chat/structured', async (req, res) => {
+app.get('/api/chat/structured', AuthService.requireCapability(AuthService.CAPABILITIES.CONVERSATION_READ), async (req, res) => {
     try {
         const model = await ChatStream.getStructuredSnapshot();
         if (model) {
@@ -2043,7 +2043,7 @@ if (existsSync('/usr/share/antigravity')) {
 }
 
 // Set workspace path
-app.post('/api/workspace', (req, res) => {
+app.post('/api/workspace', AuthService.requireCapability(AuthService.CAPABILITIES.FILES_WRITE), (req, res) => {
     const { path } = req.body;
     if (path && existsSync(path)) {
         workspacePath = path;
@@ -2059,7 +2059,7 @@ app.post('/api/workspace', (req, res) => {
 });
 
 // Get current workspace
-app.get('/api/workspace', (req, res) => {
+app.get('/api/workspace', AuthService.requireCapability(AuthService.CAPABILITIES.STATUS_READ), (req, res) => {
     const targetWorkspace = Config.getConfig('server.targetWorkspace');
     res.json({
         workspace: workspacePath,
@@ -2069,7 +2069,7 @@ app.get('/api/workspace', (req, res) => {
 });
 
 // Reset file browser to workspace root (e.g., after getting stuck in a subfolder)
-app.post('/api/workspace/reset', async (req, res) => {
+app.post('/api/workspace/reset', AuthService.requireCapability(AuthService.CAPABILITIES.FILES_WRITE), async (req, res) => {
     try {
         const detectedPath = await CDP.getWorkspacePath();
         if (detectedPath) {
@@ -2089,7 +2089,7 @@ app.post('/api/workspace/reset', async (req, res) => {
 // ============================================================================
 // Source toggle (Antigravity 2.0 app vs IDE) + live-screen tap-to-control
 // ============================================================================
-app.get('/api/cdp/sources', async (req, res) => {
+app.get('/api/cdp/sources', AuthService.requireCapability(AuthService.CAPABILITIES.STATUS_READ), async (req, res) => {
     try {
         res.json(await CDP.getSources());
     } catch (e) {
@@ -2097,7 +2097,7 @@ app.get('/api/cdp/sources', async (req, res) => {
     }
 });
 
-app.post('/api/cdp/target', async (req, res) => {
+app.post('/api/cdp/target', AuthService.requireCapability(AuthService.CAPABILITIES.STATUS_READ), async (req, res) => {
     try {
         const { target } = req.body || {};
         CDP.setCdpPreference(target);           // 'auto' | 'app' | 'ide' (forces rediscovery)
@@ -2110,7 +2110,7 @@ app.post('/api/cdp/target', async (req, res) => {
 });
 
 // Live screen as a lightweight JPEG — latest whole-desktop frame from the helper.
-app.get('/api/screen/live.jpg', async (req, res) => {
+app.get('/api/screen/live.jpg', AuthService.requireCapability(AuthService.CAPABILITIES.SCREEN_VIEW), async (req, res) => {
     const frame = HelperBridge.getLatestFrame();
     if (!frame) return res.status(503).json({ error: 'No frame yet (is desktop-helper running?)' });
     res.set('Content-Type', 'image/jpeg');
@@ -2421,7 +2421,7 @@ function setWorkspace(path) {
     broadcast('workspace_changed', { path: workspacePath, projectName: basename(workspacePath) });
 }
 
-app.get('/api/repos', async (req, res) => {
+app.get('/api/repos', AuthService.requireCapability(AuthService.CAPABILITIES.GIT_READ), async (req, res) => {
     const repos = Config.getConfig('repos') || [];
     const withMeta = [];
     for (const p of repos) {
@@ -2430,7 +2430,7 @@ app.get('/api/repos', async (req, res) => {
     res.json({ repos: withMeta, current: workspacePath, currentName: basename(workspacePath) });
 });
 
-app.post('/api/repos', (req, res) => {
+app.post('/api/repos', AuthService.requireCapability(AuthService.CAPABILITIES.GIT_WRITE), (req, res) => {
     const { path } = req.body || {};
     if (!path || !existsSync(path)) return res.status(400).json({ error: 'Path does not exist' });
     const repos = Config.getConfig('repos') || [];
@@ -2439,14 +2439,14 @@ app.post('/api/repos', (req, res) => {
     res.json({ success: true, repos });
 });
 
-app.delete('/api/repos', (req, res) => {
+app.delete('/api/repos', AuthService.requireCapability(AuthService.CAPABILITIES.GIT_WRITE), (req, res) => {
     const { path } = req.body || {};
     const repos = (Config.getConfig('repos') || []).filter(p => p !== path);
     Config.updateConfig('repos', repos);
     res.json({ success: true, repos });
 });
 
-app.post('/api/repos/select', (req, res) => {
+app.post('/api/repos/select', AuthService.requireCapability(AuthService.CAPABILITIES.GIT_READ), (req, res) => {
     const { path } = req.body || {};
     if (!path || !existsSync(path)) return res.status(400).json({ error: 'Path does not exist' });
     // Remember it too, so selecting a fresh path also adds it to the list.
@@ -2463,7 +2463,7 @@ function gitDir(req) {
     return (req.query?.path || req.body?.path || workspacePath);
 }
 
-app.get('/api/git/status', async (req, res) => {
+app.get('/api/git/status', AuthService.requireCapability(AuthService.CAPABILITIES.GIT_READ), async (req, res) => {
     try {
         res.json(await Git.status(gitDir(req)));
     } catch (e) {
@@ -2471,7 +2471,7 @@ app.get('/api/git/status', async (req, res) => {
     }
 });
 
-app.get('/api/git/diff', async (req, res) => {
+app.get('/api/git/diff', AuthService.requireCapability(AuthService.CAPABILITIES.GIT_READ), async (req, res) => {
     try {
         const file = req.query.file;
         if (!file) return res.status(400).json({ error: 'file required' });
@@ -2481,7 +2481,7 @@ app.get('/api/git/diff', async (req, res) => {
     }
 });
 
-app.get('/api/git/branches', async (req, res) => {
+app.get('/api/git/branches', AuthService.requireCapability(AuthService.CAPABILITIES.GIT_READ), async (req, res) => {
     try {
         res.json(await Git.branches(gitDir(req)));
     } catch (e) {
@@ -2489,33 +2489,33 @@ app.get('/api/git/branches', async (req, res) => {
     }
 });
 
-app.post('/api/git/stage', async (req, res) => {
+app.post('/api/git/stage', AuthService.requireCapability(AuthService.CAPABILITIES.GIT_WRITE), async (req, res) => {
     try { res.json(await Git.stage(gitDir(req), req.body.file)); }
     catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-app.post('/api/git/unstage', async (req, res) => {
+app.post('/api/git/unstage', AuthService.requireCapability(AuthService.CAPABILITIES.GIT_WRITE), async (req, res) => {
     try { res.json(await Git.unstage(gitDir(req), req.body.file)); }
     catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-app.post('/api/git/discard', async (req, res) => {
+app.post('/api/git/discard', AuthService.requireCapability(AuthService.CAPABILITIES.GIT_WRITE), async (req, res) => {
     try { res.json(await Git.discard(gitDir(req), req.body.file, !!req.body.untracked)); }
     catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-app.post('/api/git/commit', async (req, res) => {
+app.post('/api/git/commit', AuthService.requireCapability(AuthService.CAPABILITIES.GIT_WRITE), async (req, res) => {
     try { res.json(await Git.commit(gitDir(req), req.body.message)); }
     catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
-app.post('/api/git/checkout', async (req, res) => {
+app.post('/api/git/checkout', AuthService.requireCapability(AuthService.CAPABILITIES.GIT_WRITE), async (req, res) => {
     try { res.json(await Git.checkout(gitDir(req), req.body.branch, !!req.body.create)); }
     catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 // List files in directory
-app.get('/api/files', (req, res) => {
+app.get('/api/files', AuthService.requireCapability(AuthService.CAPABILITIES.FILES_READ), (req, res) => {
     try {
         const requestedPath = req.query.path || workspacePath;
         const validated = FileSecurity.validateWorkspacePath(workspacePath, requestedPath);
@@ -2582,13 +2582,13 @@ app.get('/api/files', (req, res) => {
 });
 
 // Stop file watching
-app.post('/api/files/unwatch', (req, res) => {
+app.post('/api/files/unwatch', AuthService.requireCapability(AuthService.CAPABILITIES.FILES_READ), (req, res) => {
     stopWatching();
     res.json({ success: true });
 });
 
 // Get file content
-app.get('/api/files/content', (req, res) => {
+app.get('/api/files/content', AuthService.requireCapability(AuthService.CAPABILITIES.FILES_READ), (req, res) => {
     try {
         const filePath = req.query.path;
         if (!filePath) {
@@ -2633,7 +2633,7 @@ app.get('/api/files/content', (req, res) => {
 });
 
 // Save file content
-app.post('/api/files/save', (req, res) => {
+app.post('/api/files/save', AuthService.requireCapability(AuthService.CAPABILITIES.FILES_WRITE), (req, res) => {
     try {
         const { path: filePath, content } = req.body;
         if (!filePath) {
@@ -2665,7 +2665,7 @@ app.post('/api/files/save', (req, res) => {
 });
 
 // Serve raw file (for images)
-app.get('/api/files/raw', (req, res) => {
+app.get('/api/files/raw', AuthService.requireCapability(AuthService.CAPABILITIES.FILES_READ), (req, res) => {
     try {
         const filePath = req.query.path;
         if (!filePath) {
@@ -2712,7 +2712,7 @@ app.get('/api/files/raw', (req, res) => {
 });
 
 // Download a single file (any type) to the mobile device.
-app.get('/api/files/download', (req, res) => {
+app.get('/api/files/download', AuthService.requireCapability(AuthService.CAPABILITIES.FILES_READ), (req, res) => {
     try {
         const filePath = req.query.path;
         if (!filePath) return res.status(400).json({ error: 'Path required' });
@@ -2733,7 +2733,7 @@ app.get('/api/files/download', (req, res) => {
 });
 
 // Upload files from the phone into the workspace (any type, multiple at once).
-app.post('/api/files/upload', uploadAny.array('files'), (req, res) => {
+app.post('/api/files/upload', AuthService.requireCapability(AuthService.CAPABILITIES.FILES_WRITE), uploadAny.array('files'), (req, res) => {
     try {
         const files = req.files || [];
         if (files.length === 0) return res.status(400).json({ error: 'No files uploaded' });
@@ -2763,7 +2763,7 @@ app.post('/api/files/upload', uploadAny.array('files'), (req, res) => {
 });
 
 // Clipboard sync (phone <-> PC) via PowerShell Get/Set-Clipboard.
-app.get('/api/clipboard', (req, res) => {
+app.get('/api/clipboard', AuthService.requireCapability(AuthService.CAPABILITIES.FILES_READ), (req, res) => {
     try {
         const child = spawn('powershell', ['-NoProfile', '-NonInteractive', '-WindowStyle', 'Hidden', '-Command', 'Get-Clipboard -Raw'], { windowsHide: true });
         let out = '';
@@ -2774,7 +2774,7 @@ app.get('/api/clipboard', (req, res) => {
     }
 });
 
-app.post('/api/clipboard', (req, res) => {
+app.post('/api/clipboard', AuthService.requireCapability(AuthService.CAPABILITIES.FILES_WRITE), (req, res) => {
     try {
         const text = String(req.body?.text ?? '');
         // Pass the text via env to avoid any quoting/escaping issues.
@@ -2792,7 +2792,7 @@ app.post('/api/clipboard', (req, res) => {
 
 // Download multiple files and/or folders as a single ZIP. Built with PowerShell
 // Compress-Archive so no extra npm dependency is needed (the bridge is Windows).
-app.post('/api/files/download-zip', (req, res) => {
+app.post('/api/files/download-zip', AuthService.requireCapability(AuthService.CAPABILITIES.FILES_READ), (req, res) => {
     try {
         const paths = Array.isArray(req.body?.paths) ? req.body.paths : [];
         if (paths.length === 0) return res.status(400).json({ error: 'No paths provided' });
@@ -3033,7 +3033,6 @@ CDP.screenEvents.on('frame', (base64) => {
         }
     }
 });
-HelperBridge.start();
 
 // ============================================================================
 // Start
@@ -3117,6 +3116,7 @@ async function startServer() {
             trackMetric('errors');
         });
         startScreenshotScheduler();
+        HelperBridge.start();
 
         // Initialize supervisor
         Supervisor.registerCallbacks({
