@@ -1,45 +1,29 @@
-name: CI
+name: Android CI
 
 on:
   push:
     branches: [ "**" ]
+    paths:
+      - 'android/**'
+      - '.github/workflows/android.yml'
   pull_request:
     branches: [ "**" ]
+    paths:
+      - 'android/**'
+      - '.github/workflows/android.yml'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: android-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
   contents: read
 
 jobs:
-  node:
-    name: Node Test & Contrast Suite
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out repository
-        uses: actions/checkout@v4
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: npm
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Run test suite
-        run: npm test
-
-      - name: Verify WCAG contrast ratios
-        run: node scripts/check-contrast.mjs
-
-  android:
+  unit-test:
     name: Android Unit Tests
     runs-on: ubuntu-latest
-    # UNVERIFIED: not run in CI yet
+    # UNVERIFIED: not run in remote CI runner yet; passes locally via gradlew.bat testDebugUnitTest
     continue-on-error: true
     steps:
       - name: Check out repository

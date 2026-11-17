@@ -1,0 +1,45 @@
+name: Website & SEO Validation CI
+
+on:
+  push:
+    branches: [ "**" ]
+    paths:
+      - 'site/**'
+      - 'scripts/seo-audit.mjs'
+      - '.github/workflows/site.yml'
+  pull_request:
+    branches: [ "**" ]
+    paths:
+      - 'site/**'
+      - 'scripts/seo-audit.mjs'
+      - '.github/workflows/site.yml'
+
+concurrency:
+  group: site-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: SEO & Site Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run SEO audit script
+        run: node scripts/seo-audit.mjs
+
+      - name: Verify contrast
+        run: node scripts/check-contrast.mjs

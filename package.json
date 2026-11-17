@@ -23,7 +23,9 @@
     "launch": "node src/launcher.mjs",
     "test": "node --test test/*.test.mjs",
     "contrast": "node scripts/check-contrast.mjs",
-    "tokens": "node scripts/generate-tokens.mjs"
+    "tokens": "node scripts/generate-tokens.mjs",
+    "validate:versions": "node scripts/check-version-sync.mjs",
+    "validate:seo": "node scripts/seo-audit.mjs"
   },
   "dependencies": {
     "express": "^4.18.2",
