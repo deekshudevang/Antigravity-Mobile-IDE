@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Security &amp; Privacy Model — Antigravity Mobile IDE</title>
+  <meta name="description" content="Security architecture and threat model for Antigravity Mobile IDE. Hardware Keystore token storage, loopback isolation, and SEC-06 proxy defenses.">
+  <link rel="canonical" href="https://deekshudevang.github.io/Antigravity-Mobile-IDE/security/">
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="stylesheet" href="../styles.css">
+
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://deekshudevang.github.io/Antigravity-Mobile-IDE/security/">
+  <meta property="og:title" content="Security &amp; Privacy Model — Antigravity Mobile IDE">
+  <meta property="og:description" content="Learn how Antigravity Mobile IDE protects your workstation with hardware-stored credentials, traversal protection, and zero-cloud mesh transport.">
+  <meta property="og:image" content="https://deekshudevang.github.io/Antigravity-Mobile-IDE/assets/social-preview.svg">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Security &amp; Privacy Model — Antigravity Mobile IDE">
+  <meta name="twitter:description" content="Learn how Antigravity Mobile IDE protects your workstation with hardware-stored credentials, traversal protection, and zero-cloud mesh transport.">
+  <meta name="twitter:image" content="https://deekshudevang.github.io/Antigravity-Mobile-IDE/assets/social-preview.svg">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://deekshudevang.github.io/Antigravity-Mobile-IDE/"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Security",
+        "item": "https://deekshudevang.github.io/Antigravity-Mobile-IDE/security/"
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="../index.html" class="brand-link">
+        <img src="../assets/logo.svg" alt="Antigravity Mobile IDE logo" width="32" height="32">
+        <span>Antigravity Mobile</span>
+      </a>
+      <nav class="site-nav" aria-label="Main Navigation">
+        <a href="../index.html">Overview</a>
+        <a href="../install/">Install</a>
+        <a href="../architecture/">Architecture</a>
+        <a href="../security/" class="active">Security</a>
+        <a href="../troubleshooting/">Troubleshooting</a>
+        <a href="../compare/">Compare</a>
+        <a href="../changelog/">Changelog</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main-content" class="container">
+    <h1>Security, Privacy &amp; Threat Model</h1>
+    <p class="lead">
+      Antigravity Mobile IDE was designed with a defense-in-depth posture. Controlling a developer machine remotely requires strict access control, rigorous boundary isolation, and zero ambient trust.
+    </p>
+
+    <section aria-labelledby="threat-model-heading" style="margin-top: var(--space-8);">
+      <h2 id="threat-model-heading">Core Security Guarantees</h2>
+      
+      <div class="grid-2">
+        <div class="card">
+          <h3>Loopback Isolation &amp; SEC-06</h3>
+          <p>The bridge binds strictly to <code>127.0.0.1:5000</code>. Administrative endpoints require a 32-byte cryptographically secure startup token validated with constant-time equality. Reverse proxy headers (e.g. <code>X-Forwarded-For</code>) are rejected to eliminate IP-spoofing bypasses.</p>
+        </div>
+
+        <div class="card">
+          <h3>Hardware Keystore Storage</h3>
+          <p>On Android, access and refresh tokens are encrypted using AES-256-GCM hardware keys inside Android Keystore. Backups are disabled (<code>allowBackup="false"</code>), preventing credential exfiltration via cloud backups.</p>
+        </div>
+
+        <div class="card">
+          <h3>Rotating Anti-Theft Tokens</h3>
+          <p>Dual JWT credentials utilize short 15-minute access tokens and rotating refresh tokens. Replaying an expired or already-used refresh token triggers anti-theft detection, terminating the device's token family and severing active sockets.</p>
+        </div>
+
+        <div class="card">
+          <h3>Realpath File Traversal Defense</h3>
+          <p>Workspace file browsing canonicalizes all paths with <code>fs.realpathSync</code>. Directory traversal (<code>../</code>, <code>%2e%2e%2f</code>), Windows junctions, and sensitive files (<code>.env</code>, <code>.git</code>, keys) are denied with generic 403 Forbidden responses.</p>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="vulnerability-heading" style="margin-top: var(--space-8);">
+      <h2 id="vulnerability-heading">Reporting Vulnerabilities</h2>
+      <p>
+        We welcome security audits and researcher reports. Please report potential vulnerabilities privately through <a href="https://github.com/deekshudevang/Antigravity-Mobile-IDE/security/advisories" target="_blank" rel="noopener">GitHub Private Vulnerability Reporting</a>.
+      </p>
+      <p>
+        For detailed operational limits, review our <a href="https://github.com/deekshudevang/Antigravity-Mobile-IDE/blob/main/docs/KNOWN_LIMITATIONS.md" target="_blank" rel="noopener">Known Limitations</a> and <a href="https://github.com/deekshudevang/Antigravity-Mobile-IDE/blob/main/docs/THREAT_MODEL.md" target="_blank" rel="noopener">Full Threat Model</a>.
+      </p>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-links">
+        <a href="../index.html">Home</a>
+        <a href="../install/">Install</a>
+        <a href="../architecture/">Architecture</a>
+        <a href="../troubleshooting/">Troubleshooting</a>
+        <a href="../compare/">Compare</a>
+        <a href="../changelog/">Changelog</a>
+        <a href="https://github.com/deekshudevang/Antigravity-Mobile-IDE" target="_blank" rel="noopener">GitHub</a>
+      </div>
+      <p class="footer-disclaimer">
+        Antigravity Mobile IDE is an independent open-source project. Not affiliated with, endorsed by, or sponsored by Google LLC.
+      </p>
+    </div>
+  </footer>
+</body>
+</html>

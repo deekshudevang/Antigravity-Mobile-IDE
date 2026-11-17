@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Troubleshooting &amp; FAQ — Antigravity Mobile IDE</title>
+  <meta name="description" content="Fix common connection, Tailscale DNS, pairing, and CDP errors in Antigravity Mobile IDE. Practical solutions and answers to frequently asked questions.">
+  <link rel="canonical" href="https://deekshudevang.github.io/Antigravity-Mobile-IDE/troubleshooting/">
+  <link rel="icon" type="image/svg+xml" href="../assets/favicon.svg">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="stylesheet" href="../styles.css">
+
+  <meta property="og:type" content="article">
+  <meta property="og:url" content="https://deekshudevang.github.io/Antigravity-Mobile-IDE/troubleshooting/">
+  <meta property="og:title" content="Troubleshooting &amp; FAQ — Antigravity Mobile IDE">
+  <meta property="og:description" content="Fix Tailscale connection errors, pairing code expirations, and CDP port issues in Antigravity Mobile IDE.">
+  <meta property="og:image" content="https://deekshudevang.github.io/Antigravity-Mobile-IDE/assets/social-preview.svg">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Troubleshooting &amp; FAQ — Antigravity Mobile IDE">
+  <meta name="twitter:description" content="Fix Tailscale connection errors, pairing code expirations, and CDP port issues in Antigravity Mobile IDE.">
+  <meta name="twitter:image" content="https://deekshudevang.github.io/Antigravity-Mobile-IDE/assets/social-preview.svg">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    "itemListElement": [
+      {
+        "@type": "ListItem",
+        "position": 1,
+        "name": "Home",
+        "item": "https://deekshudevang.github.io/Antigravity-Mobile-IDE/"
+      },
+      {
+        "@type": "ListItem",
+        "position": 2,
+        "name": "Troubleshooting",
+        "item": "https://deekshudevang.github.io/Antigravity-Mobile-IDE/troubleshooting/"
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Skip to main content</a>
+
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="../index.html" class="brand-link">
+        <img src="../assets/logo.svg" alt="Antigravity Mobile IDE logo" width="32" height="32">
+        <span>Antigravity Mobile</span>
+      </a>
+      <nav class="site-nav" aria-label="Main Navigation">
+        <a href="../index.html">Overview</a>
+        <a href="../install/">Install</a>
+        <a href="../architecture/">Architecture</a>
+        <a href="../security/">Security</a>
+        <a href="../troubleshooting/" class="active">Troubleshooting</a>
+        <a href="../compare/">Compare</a>
+        <a href="../changelog/">Changelog</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main-content" class="container">
+    <h1>Troubleshooting &amp; FAQ</h1>
+    <p class="lead">
+      Quick solutions to common network, pairing, and runtime errors.
+    </p>
+
+    <section aria-labelledby="network-errors-heading" style="margin-top: var(--space-8);">
+      <h2 id="network-errors-heading">Connection &amp; Tailscale Diagnostics</h2>
+
+      <div class="card" style="margin-top: var(--space-4);">
+        <h3>Symptom: <code>Unable to resolve host: No address associated with hostname</code></h3>
+        <p><strong>Cause:</strong> Android cannot resolve Tailscale MagicDNS names (e.g. <code>msi.tail3cd1f6.ts.net</code>) unless Tailscale VPN is active on the phone and MagicDNS is supported by local DNS.</p>
+        <p><strong>Solution:</strong></p>
+        <ol style="margin-left: var(--space-6); margin-top: var(--space-2);">
+          <li>Use your PC's <strong>numerical Tailscale IPv4 address</strong> (e.g. <code>100.85.12.34</code>) in the Android app. Find it by running <code>tailscale ip -4</code> on Windows.</li>
+          <li>Ensure the Tailscale VPN switch is toggled <strong>ON</strong> in the mobile Tailscale application.</li>
+        </ol>
+      </div>
+
+      <div class="card" style="margin-top: var(--space-4);">
+        <h3>Symptom: <code>Unable to resolve host "https"</code></h3>
+        <p><strong>Cause:</strong> The prefix <code>https://</code> was entered into the "Tailscale IP" field, creating a malformed URL (<code>https://https://...</code>).</p>
+        <p><strong>Solution:</strong> Enter strictly the IP address or hostname (e.g. <code>100.85.12.34</code>), without <code>http://</code> or <code>https://</code>.</p>
+      </div>
+
+      <div class="card" style="margin-top: var(--space-4);">
+        <h3>Symptom: Admin endpoints return HTTP 401 or 403</h3>
+        <p><strong>Cause:</strong> SEC-06 local admin protection requires an explicit 32-byte secret token.</p>
+        <p><strong>Solution:</strong> Look at your Windows terminal where the server started. Copy the 64-hex token under <code>🔑 [ADMIN SECURITY]</code> and paste it when prompted by the web setup wizard.</p>
+      </div>
+    </section>
+
+    <section aria-labelledby="faq-heading" style="margin-top: var(--space-12);">
+      <h2 id="faq-heading">Frequently Asked Questions</h2>
+
+      <div class="card" style="margin-top: var(--space-4);">
+        <h3>Does this send any code to Google or third-party servers?</h3>
+        <p>No. The bridge binds to local loopback (<code>127.0.0.1:5000</code>). When using Tailscale, all communication is strictly peer-to-peer over an encrypted WireGuard mesh directly between your phone and PC.</p>
+      </div>
+
+      <div class="card" style="margin-top: var(--space-4);">
+        <h3>Do I need Microsoft Visual Studio to use the mobile app?</h3>
+        <p>No. Screen mirroring and keyboard input use Chrome DevTools Protocol (CDP) screencast streaming, which runs out of the box with zero native C++ compiler dependencies.</p>
+      </div>
+
+      <div class="card" style="margin-top: var(--space-4);">
+        <h3>Can I approve commands and tool actions from my phone?</h3>
+        <p>Yes. The Android app displays interactive questionnaire and approval cards (`ask_question`, `ask_permission`), letting you click `Run`, `Allow`, or `Reject` directly from your mobile screen.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="footer-inner">
+      <div class="footer-links">
+        <a href="../index.html">Home</a>
+        <a href="../install/">Install</a>
+        <a href="../architecture/">Architecture</a>
+        <a href="../security/">Security Policy</a>
+        <a href="../compare/">Compare</a>
+        <a href="../changelog/">Changelog</a>
+        <a href="https://github.com/deekshudevang/Antigravity-Mobile-IDE" target="_blank" rel="noopener">GitHub</a>
+      </div>
+      <p class="footer-disclaimer">
+        Antigravity Mobile IDE is an independent open-source project. Not affiliated with, endorsed by, or sponsored by Google LLC.
+      </p>
+    </div>
+  </footer>
+</body>
+</html>

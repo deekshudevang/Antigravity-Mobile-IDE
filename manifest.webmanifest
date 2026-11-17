@@ -1,0 +1,17 @@
+{
+  "name": "Antigravity Mobile IDE",
+  "short_name": "AntigravityMobile",
+  "description": "Mobile companion and remote control for Antigravity coding workflows.",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#090D16",
+  "theme_color": "#090D16",
+  "icons": [
+    {
+      "src": "./assets/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
