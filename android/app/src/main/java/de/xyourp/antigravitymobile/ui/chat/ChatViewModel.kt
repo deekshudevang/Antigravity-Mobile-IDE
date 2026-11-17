@@ -78,16 +78,18 @@ class ChatViewModel(private val repo: AppRepository) : ViewModel() {
         val msg = text.trim()
         if (msg.isEmpty()) return
         val idempKey = java.util.UUID.randomUUID().toString()
-        _state.value = _state.value.copy(sending = true)
+        _state.value = _state.value.copy(sending = true, error = null)
         viewModelScope.launch {
-            runCatching { repo.api.sendCommand(msg, idempKey) }
-                .onFailure {
-                    // Fall back to cdpInject if needed
-                    runCatching { repo.api.cdpInject(msg, submit = true) }
-                }
-            _state.value = _state.value.copy(sending = false)
-            kotlinx.coroutines.delay(400)
-            load(initial = false)
+            val sendResult = runCatching { repo.api.sendCommand(msg, idempKey) }
+            val success = sendResult.isSuccess || runCatching { repo.api.cdpInject(msg, submit = true) }.isSuccess
+            _state.value = _state.value.copy(
+                sending = false,
+                error = if (success) null else "Message not sent: Antigravity IDE remote debugging is disconnected. Ensure it is running with --remote-debugging-port=9222"
+            )
+            if (success) {
+                kotlinx.coroutines.delay(400)
+                load(initial = false)
+            }
         }
     }
 

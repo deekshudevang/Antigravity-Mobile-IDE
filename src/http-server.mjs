@@ -1732,7 +1732,11 @@ app.get('/api/chat/structured', AuthService.requireCapability(AuthService.CAPABI
         if (model) {
             res.json(model);
         } else {
-            res.status(503).json({ found: false, error: 'No chat found', messages: [] });
+            res.status(503).json({
+                found: false,
+                error: 'No chat found. Antigravity IDE must be running with --remote-debugging-port=9222',
+                messages: []
+            });
         }
     } catch (e) {
         res.status(500).json({ found: false, error: e.message, messages: [] });
