@@ -80,10 +80,14 @@
 ---
 
 ## Phase 3 — Security & Trust Review
-- [ ] 3.1 Audit pairing, authentication, transport, and remote execution boundaries
-- [ ] 3.2 Write `docs/THREAT_MODEL.md` and `SECURITY.md`
-- [ ] 3.3 Verify dependency security (`npm audit`) and secrets scanning in git tree
-- [ ] 3.4 Compile `docs/KNOWN_LIMITATIONS.md` and `docs/COMPATIBILITY.md`
+- [x] 3.1 Audit pairing, authentication, transport, and remote execution boundaries
+    Evidence: Evaluated 5 threat vectors across token entropy, Keystore, realpath file boundaries, and reverse proxy defense · files: `docs/THREAT_MODEL.md`
+- [x] 3.2 Write `docs/THREAT_MODEL.md` and `SECURITY.md`
+    Evidence: Created comprehensive threat model and GitHub private vulnerability policy without fabricated emails · files: `docs/THREAT_MODEL.md`, `SECURITY.md`
+- [x] 3.3 Verify dependency security (`npm audit`) and secrets scanning in git tree
+    Evidence: `npm audit` down from 15 to 9 moderate/critical in legacy telegram; zero secrets, keys, or keystores in git tree or log
+- [x] 3.4 Compile `docs/KNOWN_LIMITATIONS.md` and `docs/COMPATIBILITY.md`
+    Evidence: Documented MSVC link.exe toolchain boundary, NTFS 0600 file modes, Tailscale IP resolution, and OS support · files: `docs/KNOWN_LIMITATIONS.md`, `docs/COMPATIBILITY.md`
 
 ---
 
