@@ -1396,15 +1396,57 @@ app.post('/api/supervisor/suggestions/:id/dismiss', (req, res) => {
 // File Awareness API (Feature 4)
 // ============================================================================
 
-app.post('/api/supervisor/file/read', (req, res) => {
-    const { path } = req.body || {};
-    if (!path) return res.json({ success: false, error: 'Missing path' });
-    res.json(Supervisor.readProjectFile(path));
+app.post('/api/supervisor/file/read', Pairing.requirePaired, (req, res) => {
+    try {
+        const { path: reqPath } = req.body || {};
+        if (!reqPath) {
+            return res.status(400).json({ error: 'Path required' });
+        }
+
+        const validated = FileSecurity.validateWorkspacePath(workspacePath, reqPath);
+        if (!validated.valid) {
+            const status = validated.error === 'path_not_found' ? 404 : 403;
+            return res.status(status).json({ error: 'Access denied' });
+        }
+        const canonical = validated.canonicalPath;
+        const stats = statSync(canonical);
+        if (stats.isDirectory()) {
+            return res.status(400).json({ error: 'Cannot read directory' });
+        }
+        if (stats.size > 1024 * 1024) {
+            return res.status(400).json({ error: 'File too large (max 1MB)' });
+        }
+        const content = readFileSync(canonical, 'utf8');
+        res.json({ success: true, content, size: stats.size });
+    } catch (e) {
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
-app.post('/api/supervisor/file/list', (req, res) => {
-    const { path } = req.body || {};
-    res.json(Supervisor.listProjectDir(path || ''));
+app.post('/api/supervisor/file/list', Pairing.requirePaired, (req, res) => {
+    try {
+        const { path: reqPath } = req.body || {};
+        const targetPath = reqPath || '.';
+
+        const validated = FileSecurity.validateWorkspacePath(workspacePath, targetPath);
+        if (!validated.valid) {
+            const status = validated.error === 'path_not_found' ? 404 : 403;
+            return res.status(status).json({ error: 'Access denied' });
+        }
+        const canonical = validated.canonicalPath;
+        const stats = statSync(canonical);
+        if (!stats.isDirectory()) {
+            return res.status(400).json({ error: 'Not a directory' });
+        }
+        const entries = readdirSync(canonical, { withFileTypes: true }).slice(0, 100).map(e => ({
+            name: e.name,
+            type: e.isDirectory() ? 'dir' : 'file',
+            size: e.isFile() ? statSync(join(canonical, e.name)).size : 0
+        }));
+        res.json({ success: true, entries });
+    } catch (e) {
+        res.status(500).json({ error: 'Internal server error' });
+    }
 });
 
 // ============================================================================
