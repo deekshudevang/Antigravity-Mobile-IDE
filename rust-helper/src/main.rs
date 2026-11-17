@@ -37,7 +37,16 @@ async fn main() {
 
     log::info!("desktop-helper starting (phase 4)");
 
+    let helper_secret = match std::env::var("DESKTOP_HELPER_SECRET") {
+        Ok(s) if !s.trim().is_empty() => s.trim().to_string(),
+        _ => {
+            log::error!("DESKTOP_HELPER_SECRET environment variable is missing or empty. Refusing to start helper.");
+            std::process::exit(1);
+        }
+    };
+
     let mut hub = Hub::new();
+    hub.secret = helper_secret;
 
     // Learn primary-display geometry up front so the Hello event is accurate,
     // then start whole-desktop capture feeding the frame hub.

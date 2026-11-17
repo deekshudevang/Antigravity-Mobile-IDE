@@ -16,6 +16,25 @@
 
 import { WebSocket } from 'ws';
 import { EventEmitter } from 'events';
+import { randomBytes } from 'crypto';
+
+// Per-start shared secret for authenticating the localhost connection to desktop-helper.
+// Passed strictly via process.env.DESKTOP_HELPER_SECRET; never logged or passed via CLI args.
+export function generateHelperSecret() {
+    return randomBytes(32).toString('hex');
+}
+
+let helperSecret = process.env.DESKTOP_HELPER_SECRET || generateHelperSecret();
+process.env.DESKTOP_HELPER_SECRET = helperSecret;
+
+export function getHelperSecret() {
+    return helperSecret;
+}
+
+let sequenceNumber = 1;
+export function getNextSequenceNumber() {
+    return sequenceNumber++;
+}
 
 const HELPER_PORT = Number(process.env.HELPER_PORT || process.env.RUSTDESK_HELPER_PORT) || 47632;
 const HELPER_URL = `ws://127.0.0.1:${HELPER_PORT}`;
@@ -54,9 +73,17 @@ function flushPending() {
 }
 
 function connect() {
-    ws = new WebSocket(HELPER_URL);
+    ws = new WebSocket(HELPER_URL, {
+        headers: {
+            'x-helper-secret': helperSecret
+        }
+    });
 
     ws.on('open', () => {
+        // Send initial first-message handshake
+        try {
+            ws.send(JSON.stringify({ type: 'auth', secret: helperSecret }));
+        } catch (e) { }
         connected = true;
         backoff = 500;
         console.log(`🖥️  Connected to desktop-helper at ${HELPER_URL}`);
@@ -114,9 +141,11 @@ export function start() {
  * surface `false` instead of pretending the input landed.
  */
 export function sendInput(cmd) {
+    if (!cmd) return false;
+    const commandWithSeq = { ...cmd, seq: cmd.seq ?? getNextSequenceNumber() };
     if (connected && ws) {
         try {
-            ws.send(JSON.stringify(cmd));
+            ws.send(JSON.stringify(commandWithSeq));
             return true;
         } catch (e) {
             // fall through to queue attempt below
@@ -124,8 +153,8 @@ export function sendInput(cmd) {
     }
     // Offline (or send failed): queue keystrokes/text so a brief helper
     // reconnect doesn't silently swallow what the user typed.
-    if (cmd && QUEUEABLE.has(cmd.type)) {
-        pending.push({ cmd, at: Date.now() });
+    if (QUEUEABLE.has(commandWithSeq.type)) {
+        pending.push({ cmd: commandWithSeq, at: Date.now() });
         if (pending.length > PENDING_MAX) pending.shift();
         return true;
     }
