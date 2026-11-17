@@ -230,8 +230,11 @@ const uploadAny = multer({
     limits: { fileSize: 500 * 1024 * 1024 }, // 500MB
 });
 
-// Workspace path (will be set dynamically via IDE detection or default to parent folder)
-let workspacePath = join(PROJECT_ROOT, '..');
+// Workspace path: default to PROJECT_ROOT if it's a git repo, otherwise parent folder,
+// then dynamically updated via IDE CDP detection when connected.
+let workspacePath = existsSync(join(PROJECT_ROOT, '.git'))
+    ? PROJECT_ROOT
+    : (existsSync(join(PROJECT_ROOT, '..', '.git')) ? join(PROJECT_ROOT, '..') : PROJECT_ROOT);
 Supervisor.setProjectRoot(workspacePath);
 let lastValidWorkspacePath = null;  // Track the last successfully detected path
 let workspacePollingActive = false;
